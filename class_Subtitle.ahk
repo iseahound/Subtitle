@@ -5,7 +5,8 @@
 
 class Subtitle{
 
-   past := {}, ScreenWidth := A_ScreenWidth, ScreenHeight := A_ScreenHeight
+   x := 0, y := 0, w := 0, h := 0, past := {}
+    , ScreenWidth := A_ScreenWidth, ScreenHeight := A_ScreenHeight
 
    __New(name := ""){
       parent := ((___ := RegExReplace(A_ThisFunc, "^(.*)\..*\..*$", "$1")) != A_ThisFunc) ? ___ : ""
@@ -85,7 +86,7 @@ class Subtitle{
          }
       }
 
-      static q1 := "i)^.*?(?<!-|\(|:|:\s)\b"
+      static q1 := "i)^.*?(?<!-|:|:\s)\b(?![^\(]*\))"
       static q2 := "(:\s?)?\(?(?<value>(?<=\()[\s\-\da-z\.#%]+(?=\))|[\-\da-z\.#%]+).*$"
 
       time := (obj1.t) ? obj1.t : (obj1.time) ? obj1.time
@@ -301,7 +302,7 @@ class Subtitle{
       }
 
       ; Draw 2 - DropShadow
-      if (d) {
+      if (!d.void) {
          delta := 2*d.3 + 2*o.1
          offset := d.3 + o.1
 
@@ -316,7 +317,7 @@ class Subtitle{
             pGraphicsDropShadow := pGraphics
          }
 
-         if (o)
+         if (!o.void)
          {
             DllCall("gdiplus\GdipCreatePath", "int",1, "uptr*",pPath)
             DllCall("gdiplus\GdipAddPathString", "ptr",pPath, "ptr", A_IsUnicode ? &text : &wtext, "int",-1
@@ -350,7 +351,7 @@ class Subtitle{
       }
 
       ; Draw 3 - Text Outline
-      if (o) {
+      if (!o.void) {
          ; Convert our text to a path.
          CreateRectF(RC, x, y, w, h)
          DllCall("gdiplus\GdipCreatePath", "int",1, "uptr*",pPath)
@@ -392,7 +393,7 @@ class Subtitle{
       }
 
       ; Draw Text
-      if !(d || o) {
+      if (d.void && o.void) {
          CreateRectF(RC, x, y, w, h)
          pBrushText := Gdip_BrushCreateSolid(c)
          Gdip_DrawString(pGraphics, text, hFont, hFormat, pBrushText, RC)
@@ -403,8 +404,12 @@ class Subtitle{
       Gdip_DeleteStringFormat(hFormat)
       Gdip_DeleteFont(hFont)
       Gdip_DeleteFontFamily(hFamily)
-      ;Tooltip % "x:`t" _x "`tw:`t" _w "`ny:`t" _y "`th:`t" _h "`n" x ", " y "`n" w ", " h
-      return this.x := (_x > this.x) ? _x : this.x, this.y := (_y > this.y) ? _y : this.y
+
+      ; Correct Offsets
+      _w := (_w == 0) ? Ceil(ReturnRC[3] + d.1 + 2*d.3 + 2*o.1 + 2*o.3) : _w
+      _h := (_h == 0) ? Ceil(ReturnRC[4] + d.2 + 2*d.3 + 2*o.1 + 2*o.3) : _h
+
+      return this.x := (_x < this.x) ? _x : this.x, this.y := (_y < this.y) ? _y : this.y
            , this.w := (_w > this.w) ? _w : this.w, this.h := (_h > this.h) ? _h : this.h
    }
 
@@ -427,12 +432,16 @@ class Subtitle{
       }
    }
 
-   Save(filename := "", quality := 92){
+   Save(filename := "", quality := 92, s := 0){
       filename := (filename ~= "i)\.(bmp|dib|rle|jpg|jpeg|jpe|jfif|gif|tif|tiff|png)$") ? filename
                 : (filename != "") ? filename ".png" : this.name ".png"
-      pBitmap := this.Bitmap(this.x + this.w, this.y + this.h)
+      pBitmap := this.Bitmap((s) ? A_ScreenWidth : this.x + this.w, (s) ? A_ScreenHeight : this.y + this.h)
       Gdip_SaveBitmapToFile(pBitmap, filename, quality)
       Gdip_DisposeImage(pBitmap)
+   }
+
+   SaveFullScreen(filename := "", quality := ""){
+      return this.Save(filename, quality, 1)
    }
 
    Bitmap(w := "", h := ""){
@@ -536,6 +545,8 @@ class Subtitle{
          o.3 := (o.g != "") ? o.g : o.glow
       } else if (o)
          o   := StrSplit(o, " ")
+      else
+         return {"void":true, 1:0, 2:0, 3:0}
 
       o.1 := (o.1 ~= "px$") ? SubStr(o.1, 1, -2) : o.1
       o.1 := (o.1 ~= percentage) ?  s * RegExReplace(o.1, percentage, "$1")  // 100 : o.1
@@ -562,6 +573,8 @@ class Subtitle{
          d.4 := (d.c != "") ? d.c : d.color
       } else if (d)
          d   := StrSplit(d, " ")
+      else
+         return {"void":true, 1:0, 2:0, 3:0, 4:0}
 
       d.1 := (d.1 ~= "px$") ? SubStr(d.1, 1, -2) : d.1
       d.1 := (d.1 ~= percentage) ? ReturnRC[3] * RegExReplace(d.1, percentage, "$1")  // 100 : d.1
