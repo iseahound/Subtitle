@@ -1,12 +1,11 @@
 ; Script:    class_Subtitle.ahk
 ; Author:    iseahound
 ; Date:      2017-09-12
-; Recent:    2017-09-12
+; Recent:    2017-09-14
 
 class Subtitle{
 
-   x := 0, y := 0, w := 0, h := 0, past := {}
-    , ScreenWidth := A_ScreenWidth, ScreenHeight := A_ScreenHeight
+   past := {}, ScreenWidth := A_ScreenWidth, ScreenHeight := A_ScreenHeight
 
    __New(name := ""){
       parent := ((___ := RegExReplace(A_ThisFunc, "^(.*)\..*\..*$", "$1")) != A_ThisFunc) ? ___ : ""
@@ -23,9 +22,6 @@ class Subtitle{
       this.hdc := CreateCompatibleDC()
       this.obm := SelectObject(this.hdc, this.hbm)
       this.G := Gdip_GraphicsFromHDC(this.hdc)
-      Gdip_SetSmoothingMode(this.G, 4)
-      ;DllCall("gdiplus\GdipSetPixelOffsetMode", "ptr",this.G, "int",2)
-      ;DllCall("gdiplus\GdipSetCompositingQuality", "ptr",this.G, "int",3)
       this.colorMap := this.colorMap()
    }
 
@@ -116,6 +112,7 @@ class Subtitle{
          _c  := (obj1.c != "")  ? obj1.c  : obj1.color
          _m  := (obj1.m != "")  ? obj1.m  : obj1.margin
          _p  := (obj1.p != "")  ? obj1.p  : obj1.padding
+         _q  := (obj1.q != "")  ? obj1.q  : (obj1.quality) ? obj1.quality : obj1.SmoothingMode
       } else {
          _a  := ((___ := RegExReplace(obj1, q1    "(a(nchor)?)"            q2, "${value}")) != obj1) ? ___ : ""
          _x  := ((___ := RegExReplace(obj1, q1    "(x|left)"               q2, "${value}")) != obj1) ? ___ : ""
@@ -126,6 +123,7 @@ class Subtitle{
          _c  := ((___ := RegExReplace(obj1, q1    "(c(olor)?)"             q2, "${value}")) != obj1) ? ___ : ""
          _m  := ((___ := RegExReplace(obj1, q1    "(m(argin)?)"            q2, "${value}")) != obj1) ? ___ : ""
          _p  := ((___ := RegExReplace(obj1, q1    "(p(adding)?)"           q2, "${value}")) != obj1) ? ___ : ""
+         _q  := ((___ := RegExReplace(obj1, q1    "(q(uality)?)"           q2, "${value}")) != obj1) ? ___ : ""
       }
 
       if IsObject(obj2){
@@ -142,11 +140,11 @@ class Subtitle{
          i  := (obj2.i != "")  ? obj2.i  : obj2.italic
          u  := (obj2.u != "")  ? obj2.u  : obj2.underline
          j  := (obj2.j != "")  ? obj2.j  : obj2.justify
-         q  := (obj2.q != "")  ? obj2.q  : obj2.quality
          n  := (obj2.n != "")  ? obj2.n  : obj2.noWrap
          z  := (obj2.z != "")  ? obj2.z  : obj2.condensed
          d  := (obj2.d != "")  ? obj2.d  : obj2.dropShadow
          o  := (obj2.o != "")  ? obj2.o  : obj2.outline
+         q  := (obj2.q != "")  ? obj2.q  : (obj2.quality) ? obj2.quality : obj2.TextRenderingHint
       } else {
          a  := ((___ := RegExReplace(obj2, q1    "(a(nchor)?)"            q2, "${value}")) != obj2) ? ___ : ""
          x  := ((___ := RegExReplace(obj2, q1    "(x|left)"               q2, "${value}")) != obj2) ? ___ : ""
@@ -161,11 +159,11 @@ class Subtitle{
          i  := ((___ := RegExReplace(obj2, q1    "(i(talic)?)"            q2, "${value}")) != obj2) ? ___ : ""
          u  := ((___ := RegExReplace(obj2, q1    "(u(nderline)?)"         q2, "${value}")) != obj2) ? ___ : ""
          j  := ((___ := RegExReplace(obj2, q1    "(j(ustify)?)"           q2, "${value}")) != obj2) ? ___ : ""
-         q  := ((___ := RegExReplace(obj2, q1    "(q(uality)?)"           q2, "${value}")) != obj2) ? ___ : ""
          n  := ((___ := RegExReplace(obj2, q1    "(n(oWrap)?)"            q2, "${value}")) != obj2) ? ___ : ""
          z  := ((___ := RegExReplace(obj2, q1    "(z|condensed?)"         q2, "${value}")) != obj2) ? ___ : ""
          d  := ((___ := RegExReplace(obj2, q1    "(d(ropShadow)?)"        q2, "${value}")) != obj2) ? ___ : ""
          o  := ((___ := RegExReplace(obj2, q1    "(o(utline)?)"           q2, "${value}")) != obj2) ? ___ : ""
+         q  := ((___ := RegExReplace(obj2, q1    "(q(uality)?)"           q2, "${value}")) != obj2) ? ___ : ""
       }
 
       ; Step 1 - Simulate string width and height, setting only the variables we need to determine it.
@@ -173,12 +171,14 @@ class Subtitle{
       style += (i) ? 2 : 0      ; italic
       style += (u) ? 4 : 0      ; underline
       style += (strike) ? 8 : 0 ; strikeout, not implemented.
-      s  := (s ~= percentage) ? A_ScreenHeight * SubStr(s, 1, -1)  // 100 :  s
+      s  := (s ~= percentage) ? A_ScreenHeight * SubStr(s, 1, -1)  / 100 :  s
       s  := (s ~= positive) ? s : 36
       q  := (q >= 0 && q <= 5) ? q : 4
       n  := (n) ? 0x4000 | 0x1000 : 0x4000
       j  := (j ~= "i)cent(er|re)") ? 1 : (j ~= "i)(far|right)") ? 2 : 0
+      _q := (_q >= 0 && _q <= 4) ? _q : 4
 
+      Gdip_SetSmoothingMode(pGraphics, _q)
       Gdip_SetTextRenderingHint(pGraphics, q) ; 4 = Anti-Alias, 5 = Cleartype
       hFamily := (___ := Gdip_FontFamilyCreate(f)) ? ___ : Gdip_FontFamilyCreate("Arial")
       hFont := Gdip_FontCreate(hFamily, s, style)
@@ -208,17 +208,18 @@ class Subtitle{
       }
 
       ; Step 3 - Define _width and _height. Do not modify with margin and padding.
-      _w  := (_w  ~= percentage) ? A_ScreenWidth  * SubStr(_w, 1, -1)  // 100 : _w
-      _h  := (_h  ~= percentage) ? A_ScreenHeight * SubStr(_h, 1, -1)  // 100 : _h
+      _w  := (_w  ~= percentage) ? A_ScreenWidth  * SubStr(_w, 1, -1)  / 100 : _w
+      _h  := (_h  ~= percentage) ? A_ScreenHeight * SubStr(_h, 1, -1)  / 100 : _h
       _w  := (_w  ~= positive) ? _w  : ReturnRC[3]
       _h  := (_h  ~= positive) ? _h  : ReturnRC[4]
 
       ; Step 4 - Define _anchor with a default value of 1.
-      if not (_a >= 1 && _a <= 9) {
-         ___ := _a
-         _a := (___ ~= "i)cent(er|re)" && ___ ~= "i)^((?!top|bottom).)*$") ? 2 : (___ ~= "i)right")  ? 3 : 1
-         _a += (___ ~= "i)cent(er|re)" && ___ ~= "i)^((?!left|right).)*$") ? 3 : (___ ~= "i)bottom") ? 6 : 0
-      }
+      _a  := (_a = "top") ? 2 : (_a = "left") ? 4 : (_a = "right") ? 6 : (_a = "bottom") ? 8
+            : (_a ~= "i)top" && _a ~= "i)left") ? 1 : (_a ~= "i)top" && _a ~= "i)cent(er|re)") ? 2
+            : (_a ~= "i)top" && _a ~= "i)bottom") ? 3 : (_a ~= "i)cent(er|re)" && _a ~= "i)left") ? 4
+            : (_a ~= "i)cent(er|re)") ? 5 : (_a ~= "i)cent(er|re)" && _a ~= "i)bottom") ? 6
+            : (_a ~= "i)bottom" && _a ~= "i)left") ? 7 : (_a ~= "i)bottom" && _a ~= "i)cent(er|re)") ? 8
+            : (_a ~= "i)bottom" && _a ~= "i)right") ? 9 : (_a ~= "^[1-9]$") ? _a : 1 ; default
 
       ; Step 5 - Modify _anchor with _x and _y.
       _a  := (_x  = "left") ? 1+(((_a-1)//3)*3) : (_x ~= "i)cent(er|re)") ? 2+(((_a-1)//3)*3) : (_x = "right") ? 3+(((_a-1)//3)*3) : _a
@@ -227,8 +228,8 @@ class Subtitle{
       ; Step 6 - Define _x and _y with respect to _anchor.
       _x  := (_x  = "left") ? 0 : (_x ~= "i)cent(er|re)") ? 0.5*A_ScreenWidth : (_x = "right") ? A_ScreenWidth : _x
       _y  := (_y  = "top") ? 0 : (_y ~= "i)cent(er|re)") ? 0.5*A_ScreenHeight : (_y = "bottom") ? A_ScreenHeight : _y
-      _x  := (_x  ~= percentage) ? A_ScreenWidth  * SubStr(_x, 1, -1)  // 100 : _x
-      _y  := (_y  ~= percentage) ? A_ScreenHeight * SubStr(_y, 1, -1)  // 100 : _y
+      _x  := (_x  ~= percentage) ? A_ScreenWidth  * SubStr(_x, 1, -1)  / 100 : _x
+      _y  := (_y  ~= percentage) ? A_ScreenHeight * SubStr(_y, 1, -1)  / 100 : _y
       _x  := (_x  ~= decimal) ? _x  : 0
       _y  := (_y  ~= decimal) ? _y  : 0
       _x  -= (mod(_a-1,3) == 0) ? 0 : (mod(_a-1,3) == 1) ? _w/2 : (mod(_a-1,3) == 2) ? _w : 0
@@ -237,29 +238,31 @@ class Subtitle{
 
 
       ; Round 1 - Define width and height.
-      w  := ( w  ~= percentage) ? _w * RegExReplace( w, percentage, "$1")  // 100 : w
-      h  := ( h  ~= percentage) ? _h * RegExReplace( h, percentage, "$1")  // 100 : h
+      w  := ( w  ~= percentage) ? _w * RegExReplace( w, percentage, "$1")  / 100 : w
+      h  := ( h  ~= percentage) ? _h * RegExReplace( h, percentage, "$1")  / 100 : h
       w  := ( w  ~= positive) ?  w  : (_w) ? _w : ReturnRC[3] ;if _w = 0
       h  := ( h  ~= positive) ?  h  : (_h) ? _h : ReturnRC[4]
 
       ; Round 2 - Define anchor.
-      if not (a >= 1 && a <= 9) {
-         ___ := a
-         a := (___ ~= "i)cent(er|re)" && ___ ~= "i)^((?!top|bottom).)*$") ? 2 : (___ ~= "i)right")  ? 3 : 1
-         a += (___ ~= "i)cent(er|re)" && ___ ~= "i)^((?!left|right).)*$") ? 3 : (___ ~= "i)bottom") ? 6 : 0
-      }
+      a  := (a = "top") ? 2 : (a = "left") ? 4 : (a = "right") ? 6 : (a = "bottom") ? 8
+            : (a ~= "i)top" && a ~= "i)left") ? 1 : (a ~= "i)top" && a ~= "i)cent(er|re)") ? 2
+            : (a ~= "i)top" && a ~= "i)bottom") ? 3 : (a ~= "i)cent(er|re)" && a ~= "i)left") ? 4
+            : (a ~= "i)cent(er|re)") ? 5 : (_a ~= "i)cent(er|re)" && a ~= "i)bottom") ? 6
+            : (a ~= "i)bottom" && a ~= "i)left") ? 7 : (a ~= "i)bottom" && a ~= "i)cent(er|re)") ? 8
+            : (a ~= "i)bottom" && a ~= "i)right") ? 9 : (a ~= "^[1-9]$") ? a : 1 ; default
+
       a  := ( x  = "left") ? 1+((( a-1)//3)*3) : ( x ~= "i)cent(er|re)") ? 2+((( a-1)//3)*3) : ( x = "right") ? 3+((( a-1)//3)*3) :  a
       a  := ( y  = "top") ? 1+(mod( a-1,3)) : ( y ~= "i)cent(er|re)") ? 4+(mod( a-1,3)) : ( y = "bottom") ? 7+(mod( a-1,3)) :  a
 
       ; Round 3 - Define x and y with respect to anchor.
       x  := ( x  = "left") ? _x : (x ~= "i)cent(er|re)") ? _x + 0.5*_w : (x = "right") ? _x + _w : x
       y  := ( y  = "top") ? _y : (y ~= "i)cent(er|re)") ? _y + 0.5*_h : (y = "bottom") ? _y + _h : y
-      x  := ( x  ~= percentage) ? _x + (_w * RegExReplace( x, percentage, "$1")  // 100) : x
-      y  := ( y  ~= percentage) ? _y + (_h * RegExReplace( y, percentage, "$1")  // 100) : y
+      x  := ( x  ~= percentage) ? _x + (_w * RegExReplace( x, percentage, "$1")  / 100) : x
+      y  := ( y  ~= percentage) ? _y + (_h * RegExReplace( y, percentage, "$1")  / 100) : y
       x  := ( x  ~= decimal) ? x  : _x
       y  := ( y  ~= decimal) ? y  : _y
-      x  -= (mod(a-1,3) == 0) ? 0 : (mod(a-1,3) == 1) ?  ReturnRC[3]/2 : (mod( a-1,3) == 2) ?  ReturnRC[3] : 0
-      y  -= (((a-1)//3) == 0) ? 0 : (((a-1)//3) == 1) ?  ReturnRC[4]/2 : ((( a-1)//3) == 2) ?  ReturnRC[4] : 0
+      x  -= (mod(a-1,3) == 0) ? 0 : (mod(a-1,3) == 1) ? ReturnRC[3]/2 : (mod(a-1,3) == 2) ? ReturnRC[3] : 0
+      y  -= (((a-1)//3) == 0) ? 0 : (((a-1)//3) == 1) ? ReturnRC[4]/2 : (((a-1)//3) == 2) ? ReturnRC[4] : 0
 
       ; Round 4 - Modify _x, _y, _w, _h with margin and padding.
       if (_w && _h) {
@@ -275,8 +278,8 @@ class Subtitle{
 
       ; Round 6 - Define radius of rounded corners.
       _smaller := (_w > _h) ? _h : _w
-      _r  := (_r  ~= percentage) ? _smaller * RegExReplace(_r, percentage, "$1")  // 100 : _r
-      _r  := (_r  <= _smaller // 2 && _r ~= positive) ? _r : 0
+      _r  := (_r  ~= percentage) ? _smaller * RegExReplace(_r, percentage, "$1")  / 100 : _r
+      _r  := (_r  <= _smaller / 2 && _r ~= positive) ? _r : 0
 
       ; Round 7 - Define color.
       _c := this.color(_c, 0xDD424242)
@@ -393,7 +396,7 @@ class Subtitle{
       }
 
       ; Draw Text
-      if (d.void && o.void) {
+      if (text != "" && d.void && o.void) {
          CreateRectF(RC, x, y, w, h)
          pBrushText := Gdip_BrushCreateSolid(c)
          Gdip_DrawString(pGraphics, text, hFont, hFormat, pBrushText, RC)
@@ -406,11 +409,14 @@ class Subtitle{
       Gdip_DeleteFontFamily(hFamily)
 
       ; Correct Offsets
-      _w := (_w == 0) ? Ceil(ReturnRC[3] + d.1 + 2*d.3 + 2*o.1 + 2*o.3) : _w
-      _h := (_h == 0) ? Ceil(ReturnRC[4] + d.2 + 2*d.3 + 2*o.1 + 2*o.3) : _h
+      _w := (_w == 0) ? (ReturnRC[3] + d.1 + 2*d.3 + 2*o.1 + 2*o.3) : _w
+      _h := (_h == 0) ? (ReturnRC[4] + d.2 + 2*d.3 + 2*o.1 + 2*o.3) : _h
 
-      return this.x := (_x < this.x) ? _x : this.x, this.y := (_y < this.y) ? _y : this.y
-           , this.w := (_w > this.w) ? _w : this.w, this.h := (_h > this.h) ? _h : this.h
+      this.x  := (this.x  = "" || _x < this.x) ? _x : this.x
+      this.y  := (this.y  = "" || _y < this.y) ? _y : this.y
+      this.x2 := (this.x2 = "" || _x + _w > this.x2) ? _x + _w : this.x2
+      this.y2 := (this.y2 = "" || _y + _h > this.y2) ? _y + _h : this.y2
+      return
    }
 
    Render(text := "", obj1 := "", obj2 := "", update := 1){
@@ -432,10 +438,26 @@ class Subtitle{
       }
    }
 
-   Save(filename := "", quality := 92, s := 0){
+   Bitmap(x:=0, y:=0, w:=0, h:=0){
+      pBitmap := Gdip_CreateBitmap(A_ScreenWidth, A_ScreenHeight)
+      pGraphics := Gdip_GraphicsFromImage(pBitmap)
+      loop % this.past.MaxIndex()
+         this.Draw(this.past[A_Index].1, this.past[A_Index].2, this.past[A_Index].3, pGraphics)
+      Gdip_DeleteGraphics(pGraphics)
+
+      if (x || y || w || h) {
+         w := (w = 0) ? A_ScreenWidth, h := (h = 0) ? A_ScreenHeight
+         pBitmap2 := Gdip_CloneBitmapArea(pBitmap, x, y, w, h)
+         Gdip_DisposeImage(pBitmap)
+         pBitmap := pBitmap2
+      }
+      return pBitmap ; Please dispose of this image responsibly.
+   }
+
+   Save(filename := "", quality := 92, fullscreen := 0){
       filename := (filename ~= "i)\.(bmp|dib|rle|jpg|jpeg|jpe|jfif|gif|tif|tiff|png)$") ? filename
                 : (filename != "") ? filename ".png" : this.name ".png"
-      pBitmap := this.Bitmap((s) ? A_ScreenWidth : this.x + this.w, (s) ? A_ScreenHeight : this.y + this.h)
+      pBitmap := (fullscreen) ? this.Bitmap() : this.Bitmap(this.x, this.y, this.x2 - this.x, this.y2 - this.y)
       Gdip_SaveBitmapToFile(pBitmap, filename, quality)
       Gdip_DisposeImage(pBitmap)
    }
@@ -444,25 +466,11 @@ class Subtitle{
       return this.Save(filename, quality, 1)
    }
 
-   Bitmap(w := "", h := ""){
-      pBitmap := Gdip_CreateBitmap((w) ? w : A_ScreenWidth, (h) ? h : A_ScreenHeight)
-      G := Gdip_GraphicsFromImage(pBitmap)
-      Gdip_SetSmoothingMode(G, 4)
-
-      i := 0
-      while (i < this.past.MaxIndex()){
-         i++
-         this.Draw(this.past[i].1, this.past[i].2, this.past[i].3, G)
-      }
-      Gdip_DeleteGraphics(G)
-      return pBitmap ; Please dispose of this image responsibly.
-   }
-
    hBitmap(alpha := 0xFFFFFFFF){
       ; hBitmap converts alpha channel to specified alpha color.
       ; Add 1 pixel because Anti-Alias (SmoothingMode = 4)
       ; Should it be crop 1 pixel instead?
-      pBitmap := this.Bitmap(this.x + this.w + 1, this.y + this.h + 1)
+      pBitmap := this.Bitmap(this.x, this.y, this.x2 - this.x, this.y2 - this.y)
       hBitmap := Gdip_CreateHBITMAPFromBitmap(pBitmap, alpha)
       Gdip_DisposeImage(pBitmap)
       return hBitmap
@@ -481,6 +489,13 @@ class Subtitle{
          _subtitle.Render(text, obj1, obj2, 0)
          return _subtitle.hBitmap() ; Does not return a subtitle object.
       }
+   }
+
+   hIcon(){
+      pBitmap := this.Bitmap(this.x, this.y, this.x2 - this.x, this.y2 - this.y)
+      hIcon := Gdip_CreateHICONFromBitmap(pBitmap)
+      Gdip_DisposeImage(pBitmap)
+      return hIcon
    }
 
    color(c, default := 0xDD424242){
@@ -522,10 +537,10 @@ class Subtitle{
       else
          return {1:default, 2:default, 3:default, 4:default}
 
-      m.1 := (m.1 ~= percentage) ? A_ScreenHeight * SubStr(m.1, 1, -1)  // 100 : m.1
-      m.2 := (m.2 ~= percentage) ? (exception ? A_ScreenHeight : A_ScreenWidth) * SubStr(m.2, 1, -1)  // 100 : m.2
-      m.3 := (m.3 ~= percentage) ? A_ScreenHeight * SubStr(m.3, 1, -1)  // 100 : m.3
-      m.4 := (m.4 ~= percentage) ? (exception ? A_ScreenHeight : A_ScreenWidth) * SubStr(m.4, 1, -1)  // 100 : m.4
+      m.1 := (m.1 ~= percentage) ? A_ScreenHeight * SubStr(m.1, 1, -1)  / 100 : m.1
+      m.2 := (m.2 ~= percentage) ? (exception ? A_ScreenHeight : A_ScreenWidth) * SubStr(m.2, 1, -1)  / 100 : m.2
+      m.3 := (m.3 ~= percentage) ? A_ScreenHeight * SubStr(m.3, 1, -1)  / 100 : m.3
+      m.4 := (m.4 ~= percentage) ? (exception ? A_ScreenHeight : A_ScreenWidth) * SubStr(m.4, 1, -1)  / 100 : m.4
 
       m.1 := (m.1 ~= positive) ? m.1 : default
       m.2 := (m.2 ~= positive) ? m.2 : default
@@ -577,11 +592,11 @@ class Subtitle{
          return {"void":true, 1:0, 2:0, 3:0, 4:0}
 
       d.1 := (d.1 ~= "px$") ? SubStr(d.1, 1, -2) : d.1
-      d.1 := (d.1 ~= percentage) ? ReturnRC[3] * RegExReplace(d.1, percentage, "$1")  // 100 : d.1
+      d.1 := (d.1 ~= percentage) ? ReturnRC[3] * RegExReplace(d.1, percentage, "$1")  / 100 : d.1
       d.1 := (d.1 ~= decimal) ? d.1 : 0
 
       d.2 := (d.2 ~= "px$") ? SubStr(d.2, 1, -2) : d.2
-      d.2 := (d.2 ~= percentage) ? ReturnRC[4] * RegExReplace(d.2, percentage, "$1")  // 100 : d.2
+      d.2 := (d.2 ~= percentage) ? ReturnRC[4] * RegExReplace(d.2, percentage, "$1")  / 100 : d.2
       d.2 := (d.2 ~= decimal) ? d.2 : 0
 
       d.3 := (d.3 ~= "px$") ? SubStr(d.3, 1, -2) : d.3
@@ -757,18 +772,18 @@ class Subtitle{
    }
 
    x2(){
-      return this.x + this.w
+      return this.x2
    }
 
    y2(){
-      return this.y + this.h
+      return this.y2
    }
 
    width(){
-      return this.w
+      return this.x2 - this.x
    }
 
    height(){
-      return this.h
+      return this.y2 - this.y
    }
 }
