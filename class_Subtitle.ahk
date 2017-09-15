@@ -334,6 +334,8 @@ class Subtitle{
             Gdip_FillPath(pGraphicsDropShadow, pBrush, pPath)
             Gdip_DeleteBrush(pBrush)
             Gdip_DeletePath(pPath)
+            Gdip_SetCompositingMode(pGraphicsDropShadow, 0)
+            Gdip_SetSmoothingMode(pGraphicsDropShadow, _q)
          }
          else
          {
@@ -368,9 +370,12 @@ class Subtitle{
             DllCall("gdiplus\GdipClonePath", "ptr",pPath, "uptr*",pPathGlow)
             DllCall("gdiplus\GdipWidenPath", "ptr",pPathGlow, "ptr",pPen, "ptr",0, "float",1)
 
+            ; Set color to glowColor or use the previous color.
+            color := (o.4) ? o.4 : o.2
+
             loop % o.3
             {
-               ARGB := Format("0x{:02X}",((o.2 & 0xFF000000) >> 24)/o.3) . Format("{:06X}",(o.2 & 0x00FFFFFF))
+               ARGB := Format("0x{:02X}",((color & 0xFF000000) >> 24)/o.3) . Format("{:06X}",(color & 0x00FFFFFF))
                pPenGlow := Gdip_CreatePen(ARGB, A_Index)
                DllCall("gdiplus\GdipSetPenLineJoin", "ptr",pPenGlow, "uInt",2)
                DllCall("gdiplus\GdipDrawPath", "ptr",pGraphics, "ptr",pPenGlow, "ptr",pPathGlow)
@@ -553,13 +558,14 @@ class Subtitle{
       static positive := "^\d+(\.\d*)?$"
 
       if IsObject(o){
-         o.1 := (o.w != "") ? o.w : o.width
-         o.2 := (o.c != "") ? o.c : o.color
-         o.3 := (o.g != "") ? o.g : o.glow
+         o.1 := (o.w  != "") ? o.w  : o.width
+         o.2 := (o.c  != "") ? o.c  : o.color
+         o.3 := (o.g  != "") ? o.g  : o.glow
+         o.4 := (o.c2 != "") ? o.c2 : o.glowColor
       } else if (o)
          o   := StrSplit(o, " ")
       else
-         return {"void":true, 1:0, 2:0, 3:0}
+         return {"void":true, 1:0, 2:0, 3:0, 4:0}
 
       o.1 := (o.1 ~= "px$") ? SubStr(o.1, 1, -2) : o.1
       o.1 := (o.1 ~= percentage) ?  s * RegExReplace(o.1, percentage, "$1")  // 100 : o.1
@@ -571,6 +577,7 @@ class Subtitle{
       o.3 := (o.3 ~= percentage) ?  s * RegExReplace(o.3, percentage, "$1")  // 100 : o.3
       o.3 := (o.3 ~= positive) ? o.3 : 0
 
+      o.4 := this.color(o.4, 0x00000000)
       return o
    }
 
