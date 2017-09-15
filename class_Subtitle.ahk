@@ -591,10 +591,11 @@ class Subtitle{
          d.2 := (d.v != "") ? d.v : d.vertical
          d.3 := (d.b != "") ? d.b : d.blur
          d.4 := (d.c != "") ? d.c : d.color
+         d.5 := (d.s != "") ? d.s : d.strength
       } else if (d)
          d   := StrSplit(d, " ")
       else
-         return {"void":true, 1:0, 2:0, 3:0, 4:0}
+         return {"void":true, 1:0, 2:0, 3:0, 4:0, 5:0}
 
       d.1 := (d.1 ~= "px$") ? SubStr(d.1, 1, -2) : d.1
       d.1 := (d.1 ~= percentage) ? ReturnRC[3] * RegExReplace(d.1, percentage, "$1")  / 100 : d.1
@@ -605,11 +606,13 @@ class Subtitle{
       d.2 := (d.2 ~= decimal) ? d.2 : 0
 
       d.3 := (d.3 ~= "px$") ? SubStr(d.3, 1, -2) : d.3
-      d.3 := (d.3 ~= percentage) ?  s * RegExReplace(d.3, percentage, "$1")  // 100 : d.3
+      d.3 := (d.3 ~= percentage) ? s * RegExReplace(d.3, percentage, "$1")  / 100 : d.3
       d.3 := (d.3 ~= positive) ? d.3 : 1
 
       d.4 := this.color(d.4, 0xFF000000)
 
+      d.5 := (d.5 ~= percentage) ? s * RegExReplace(d.5, percentage, "$1")  / 100 : d.5
+      d.5 := (d.5 ~= positive) ? d.5 : 1
       return d
    }
 
