@@ -68,7 +68,6 @@ class Subtitle{
          this.hdc := CreateCompatibleDC()
          this.obm := SelectObject(this.hdc, this.hbm)
          this.G := Gdip_GraphicsFromHDC(this.hdc)
-         Gdip_SetSmoothingMode(this.G, 4)
       }
    }
 
@@ -312,7 +311,7 @@ class Subtitle{
          if (d.3) {
             pBitmap := Gdip_CreateBitmap(w + delta, h + delta)
             pGraphicsDropShadow := Gdip_GraphicsFromImage(pBitmap)
-            Gdip_SetSmoothingMode(pGraphicsDropShadow, 4)
+            Gdip_SetSmoothingMode(pGraphicsDropShadow, _q)
             Gdip_SetTextRenderingHint(pGraphicsDropShadow, q)
             CreateRectF(RC, offset, offset, w + delta, h + delta)
          } else {
@@ -335,8 +334,6 @@ class Subtitle{
             Gdip_FillPath(pGraphicsDropShadow, pBrush, pPath)
             Gdip_DeleteBrush(pBrush)
             Gdip_DeletePath(pPath)
-            Gdip_SetCompositingMode(pGraphicsDropShadow, 0)
-            Gdip_SetSmoothingMode(pGraphicsDropShadow, 4)
          }
          else
          {
@@ -346,6 +343,7 @@ class Subtitle{
          }
 
          if (d.3) {
+            Gdip_DeleteGraphics(pGraphicsDropShadow)
             pBlur := Gdip_BlurBitmap(pBitmap, d.3)
             Gdip_DisposeImage(pBitmap)
             Gdip_DrawImage(pGraphics, pBlur, x + d.1 - offset, y + d.2 - offset, w + delta, h + delta)
