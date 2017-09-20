@@ -74,11 +74,13 @@ class Subtitle{
    Draw(text := "", obj1 := "", obj2 := "", pGraphics := "") {
       if (pGraphics == "") {
          pGraphics := this.G
-         this.past.push([text, obj1, obj2])
          if (this.rendered == true) {
-            this.rendered := this.past := ""
+            this.rendered := false
+            this.past := {}
+            this.x := this.y := this.2x := this.2y := ""
             Gdip_GraphicsClear(this.G)
          }
+         this.past.push([text, obj1, obj2])
       }
 
       static q1 := "i)^.*?(?<!-|:|:\s)\b(?![^\(]*\))"
