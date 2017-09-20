@@ -1,7 +1,7 @@
 ; Script:    class_Subtitle.ahk
 ; Author:    iseahound
 ; Date:      2017-09-12
-; Recent:    2017-09-14
+; Recent:    2017-09-20
 
 class Subtitle{
 
@@ -417,8 +417,8 @@ class Subtitle{
 
       this.x  := (this.x  = "" || _x < this.x) ? _x : this.x
       this.y  := (this.y  = "" || _y < this.y) ? _y : this.y
-      this.x2 := (this.x2 = "" || _x + _w > this.x2) ? _x + _w : this.x2
-      this.y2 := (this.y2 = "" || _y + _h > this.y2) ? _y + _h : this.y2
+      this.2x := (this.2x = "" || _x + _w > this.2x) ? _x + _w : this.2x
+      this.2y := (this.2y = "" || _y + _h > this.2y) ? _y + _h : this.2y
       return
    }
 
@@ -460,7 +460,7 @@ class Subtitle{
    Save(filename := "", quality := 92, fullscreen := 0){
       filename := (filename ~= "i)\.(bmp|dib|rle|jpg|jpeg|jpe|jfif|gif|tif|tiff|png)$") ? filename
                 : (filename != "") ? filename ".png" : this.name ".png"
-      pBitmap := (fullscreen) ? this.Bitmap() : this.Bitmap(this.x, this.y, this.x2 - this.x, this.y2 - this.y)
+      pBitmap := (fullscreen) ? this.Bitmap() : this.Bitmap(this.x, this.y, this.2x - this.x, this.2y - this.y)
       Gdip_SaveBitmapToFile(pBitmap, filename, quality)
       Gdip_DisposeImage(pBitmap)
    }
@@ -473,7 +473,7 @@ class Subtitle{
       ; hBitmap converts alpha channel to specified alpha color.
       ; Add 1 pixel because Anti-Alias (SmoothingMode = 4)
       ; Should it be crop 1 pixel instead?
-      pBitmap := this.Bitmap(this.x, this.y, this.x2 - this.x, this.y2 - this.y)
+      pBitmap := this.Bitmap(this.x, this.y, this.2x - this.x, this.2y - this.y)
       hBitmap := Gdip_CreateHBITMAPFromBitmap(pBitmap, alpha)
       Gdip_DisposeImage(pBitmap)
       return hBitmap
@@ -495,7 +495,7 @@ class Subtitle{
    }
 
    hIcon(){
-      pBitmap := this.Bitmap(this.x, this.y, this.x2 - this.x, this.y2 - this.y)
+      pBitmap := this.Bitmap(this.x, this.y, this.2x - this.x, this.2y - this.y)
       hIcon := Gdip_CreateHICONFromBitmap(pBitmap)
       Gdip_DisposeImage(pBitmap)
       return hIcon
@@ -780,18 +780,18 @@ class Subtitle{
    }
 
    x2(){
-      return this.x2
+      return this.2x
    }
 
    y2(){
-      return this.y2
+      return this.2y
    }
 
    width(){
-      return this.x2 - this.x
+      return this.2x - this.x
    }
 
    height(){
-      return this.y2 - this.y
+      return this.2y - this.y
    }
 }
