@@ -1,6 +1,6 @@
 ; Script:    Subtitle.ahk
 ; Author:    iseahound
-; Version:   2018-04-17 (April 2017)
+; Version:   2018-04-17 (April 2018)
 ; Recent:    2018-04-17
 
 #include <Gdip_All>
