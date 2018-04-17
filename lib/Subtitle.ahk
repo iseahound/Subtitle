@@ -194,7 +194,7 @@ class Subtitle{
             this.x := this.y := this.xx := this.yy := "" ; not 0!
             Gdip_GraphicsClear(this.G)
          }
-         this.layers.push([text, style1, style2])
+         this.layers.push([text, style1, style2]) ; Saves each call of Draw()
          pGraphics := this.G
       }
 
@@ -293,7 +293,7 @@ class Subtitle{
 
       ; Get Rendering Quality.
       _q := (_q >= 0 && _q <= 4) ? _q : 4          ; Default SmoothingMode is 4 if radius is set. See Draw 1.
-      q  := (q >= 0 && q <= 5) ? q : 4             ; Default TextRenderingHint is 4.
+      q  := (q >= 0 && q <= 5) ? q : 4             ; Default TextRenderingHint is 4 (antialias).
 
       ; Get Font size.
       s  := (s ~= valid_positive) ? RegExReplace(s, "\s", "") : "2.23vh"           ; Default font size is 2.23vh.
@@ -308,7 +308,12 @@ class Subtitle{
       style += (u) ? 4 : 0         ; underline
       style += (strikeout) ? 8 : 0 ; strikeout, not implemented.
       n  := (n) ? 0x4000 | 0x1000 : 0x4000
-      j  := (j ~= "i)cent(er|re)") ? 1 : (j ~= "i)(far|right)") ? 2 : 0       ; Left/near, center/centre, far/right.
+      j  := (j ~= "i)cent(er|re)") ? 1 : (j ~= "i)(far|right)") ? 2 : 0   ; Left/near, center/centre, far/right.
+
+      ; Later when text x and w are finalized and it is found that x + ReturnRC[3] exceeds the screen,
+      ; then the _redrawBecauseOfCondensedFont flag is set to true.
+      if (this._redrawBecauseOfCondensedFont == true)
+         f:=z, z:=0, this._redrawBecauseOfCondensedFont := false
 
       ; Create Font.
       hFamily := (___ := Gdip_FontFamilyCreate(f)) ? ___ : Gdip_FontFamilyCreate("Arial") ; Default font is Arial.
@@ -321,21 +326,7 @@ class Subtitle{
       Gdip_SetSmoothingMode(pGraphics, _q)     ; None = 3, AntiAlias = 4
       Gdip_SetTextRenderingHint(pGraphics, q)  ; Anti-Alias = 4, Cleartype = 5 (and gives weird effects.)
       ReturnRC := Gdip_MeasureString(pGraphics, Text, hFont, hFormat, RC)
-      ReturnRC := StrSplit(ReturnRC, "|") ; Contains the values for measured x, y, w, h text.
-
-      /*
-      ; Deprecarred - Condense Text using a Condensed Font if simulated text width exceeds screen width.
-      if (___ := Gdip_FontFamilyCreate(z)) {
-         ExtraMargin := (_m.2 + _m.4 + _p.2 + _p.4)
-         if (ReturnRC[3] + ExtraMargin > A_ScreenWidth){
-            hFamily := Gdip_FontFamilyCreate(z)
-            hFont := Gdip_FontCreate(hFamily, s, style)
-            ReturnRC := Gdip_MeasureString(pGraphics, Text, hFont, hFormat, RC)
-            ReturnRC := StrSplit(ReturnRC, "|")
-            _w  := ReturnRC[3]
-         }
-      }
-      */
+      ReturnRC := StrSplit(ReturnRC, "|")      ; Contains the values for measured x, y, w, h text.
 
       ; Get background width and height. Default width and height are simulated width and height.
       _w := (_w ~= valid_positive) ? RegExReplace(_w, "\s", "") : ReturnRC[3]
@@ -476,6 +467,14 @@ class Subtitle{
       ; If margin/padding are defined in the text parameter, shift the position of the text.
       x  += (m.4 + p.4)
       y  += (m.1 + p.1)
+
+      ; Re-run: Condense Text using a Condensed Font if simulated text width exceeds screen width.
+      if (Gdip_FontFamilyCreate(z)) {
+         if (ReturnRC[3] + x > A_ScreenWidth) {
+            this._redrawBecauseOfCondensedFont := true
+            return this.Draw(text, style1, style2, pGraphics)
+         }
+      }
 
       ; Define radius of rounded corners.
       _r := (_r ~= valid_positive) ? RegExReplace(_r, "\s", "") : 0  ; Default radius is 0, or square corners.
