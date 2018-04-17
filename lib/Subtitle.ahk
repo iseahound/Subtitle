@@ -1,7 +1,10 @@
-; Script:    class_Subtitle.ahk
+; Script:    Subtitle.ahk
 ; Author:    iseahound
-; Version:   2017-09-12
-; Recent:    2018-04-16
+; Version:   2018-04-17 (April 2017)
+; Recent:    2018-04-17
+
+#include <Gdip_All>
+
 
 class Subtitle{
 
@@ -20,6 +23,10 @@ class Subtitle{
       this.title := (title != "") ? title : "Subtitle_" this.hwnd
       DllCall("ShowWindow", "ptr",this.hwnd, "int",8)
       DllCall("SetWindowText", "ptr",this.hwnd, "str",this.title)
+      this.hbm := CreateDIBSection(this.ScreenWidth, this.ScreenHeight)
+      this.hdc := CreateCompatibleDC()
+      this.obm := SelectObject(this.hdc, this.hbm)
+      this.G := Gdip_GraphicsFromHDC(this.hdc)
       this.colorMap := this.colorMap()
       return this
    }
@@ -87,6 +94,8 @@ class Subtitle{
          this.hdc := CreateCompatibleDC()
          this.obm := SelectObject(this.hdc, this.hbm)
          this.G := Gdip_GraphicsFromHDC(this.hdc)
+         loop % this.layers.maxIndex()
+            this.Draw(this.layers[A_Index].1, this.layers[A_Index].2, this.layers[A_Index].3, pGraphics)
       }
    }
 
@@ -141,10 +150,11 @@ class Subtitle{
       }
       else {
          Critical On
-         ;this.DetectScreenResolutionChange()
          this.Draw(text, style1, style2)
-         if (update)
-            UpdateLayeredWindow(this.hwnd, this.hdc, 0, 0, A_ScreenWidth, A_ScreenHeight)
+         this.DetectScreenResolutionChange()
+         if (update == true) {
+            UpdateLayeredWindow(this.hwnd, this.hdc, 0, 0, this.ScreenWidth, this.ScreenHeight)
+         }
          if (this.time) {
             self_destruct := ObjBindMethod(this, "Destroy")
             SetTimer, % self_destruct, % -1 * this.time
@@ -176,15 +186,24 @@ class Subtitle{
    }
 
    Draw(text := "", style1 := "", style2 := "", pGraphics := "") {
+      ; If the image was previously rendered, reset everything like a new Subtitle object.
+      if (pGraphics == "") {
+         if (this.rendered == true) {
+            this.rendered := false
+            this.layers := {}
+            this.x := this.y := this.xx := this.yy := "" ; not 0!
+            Gdip_GraphicsClear(this.G)
+         }
+         this.layers.push([text, style1, style2])
+         pGraphics := this.G
+      }
+
       ; Remember styles so that they can be loaded next time.
-      this.style1 := style1
-      this.style2 := style2
+      this.style1 := style1, this.style2 := style2
 
       ; Load saved styles if and only if both styles are blank.
-      if (style1 == "" && style2 == "") {
-         style1 := this.style1
-         style2 := this.style2
-      }
+      if (style1 == "" && style2 == "")
+         style1 := this.style1, style2 := this.style2
 
       ; I was autistic when I wrote this fking RegEx. It is a work of art.
       static q1 := "i)^.*?(?<!-|:|:\s)\b(?![^\(]*\))"
@@ -198,7 +217,7 @@ class Subtitle{
          : this.time
 
       ; Extract styles from the background styles parameter.
-      if IsObject(style1){
+      if IsObject(style1) {
          _a  := (style1.anchor != "")   ? style1.anchor   : style1.a
          _x  := (style1.left != "")     ? style1.left     : style1.x
          _y  := (style1.top != "")      ? style1.top      : style1.y
@@ -223,7 +242,7 @@ class Subtitle{
       }
 
       ; Extract styles from the text styles parameter.
-      if IsObject(style2){
+      if IsObject(style2) {
          a  := (style2.anchor != "")      ? style2.anchor      : style2.a
          x  := (style2.left != "")        ? style2.left        : style2.x
          y  := (style2.top != "")         ? style2.top         : style2.y
@@ -268,9 +287,9 @@ class Subtitle{
       static valid_positive := "^(\d+(?:\.\d*)?)\s*(%|pt|px|vh|vmin|vw)?$"
 
       ; Define viewport width and height. This is the visible screen area.
-      this.vw := 0.01 * A_ScreenWidth    ; 1% of viewport width.
-      this.vh := 0.01 * A_ScreenHeight   ; 1% of viewport height.
-      this.vmin := Min(this.vw, this.vh) ; 1vw or 1vh, whichever is smaller.
+      this.vw := 0.01 * this.ScreenWidth    ; 1% of viewport width.
+      this.vh := 0.01 * this.ScreenHeight   ; 1% of viewport height.
+      this.vmin := (this.vw < this.vh) ? this.vw : this.vh ; 1vw or 1vh, whichever is smaller.
 
       ; Get Rendering Quality.
       _q := (_q >= 0 && _q <= 4) ? _q : 4          ; Default SmoothingMode is 4 if radius is set. See Draw 1.
@@ -298,15 +317,11 @@ class Subtitle{
       Gdip_SetStringFormatAlign(hFormat, j)  ; Left = 0, Center = 1, Right = 2
 
       ; Simulate string width and height. This will get the exact width and height of the text.
-      DeviceContext := CreateCompatibleDC()             ; Create a handle to the device context.
-      Graphics := Gdip_GraphicsFromHDC(DeviceContext)   ; Get graphics from the decvice context.
       CreateRectF(RC, 0, 0, 0, 0)
-      Gdip_SetSmoothingMode(Graphics, _q)     ; None = 3, AntiAlias = 4
-      Gdip_SetTextRenderingHint(Graphics, q)  ; Anti-Alias = 4, Cleartype = 5 (and gives weird effects.)
-      ReturnRC := Gdip_MeasureString(Graphics, Text, hFont, hFormat, RC)
+      Gdip_SetSmoothingMode(pGraphics, _q)     ; None = 3, AntiAlias = 4
+      Gdip_SetTextRenderingHint(pGraphics, q)  ; Anti-Alias = 4, Cleartype = 5 (and gives weird effects.)
+      ReturnRC := Gdip_MeasureString(pGraphics, Text, hFont, hFormat, RC)
       ReturnRC := StrSplit(ReturnRC, "|") ; Contains the values for measured x, y, w, h text.
-      Gdip_DeleteGraphics(Graphics)
-      DeleteDC(DeviceContext) ; Remember these are temporary objects!
 
       /*
       ; Deprecarred - Condense Text using a Condensed Font if simulated text width exceeds screen width.
@@ -514,40 +529,19 @@ class Subtitle{
       this.xx := (x + d.1 + w + artifacts > this.xx) ? x + d.1 + w + artifacts : this.xx
       this.yy := (y + d.2 + h + artifacts > this.yy) ? y + d.2 + h + artifacts : this.yy
 
+      ; Round to the nearest integer.
+      this.x := Floor(this.x)
+      this.y := Floor(this.y)
+      this.xx := Ceil(this.xx)
+      this.yy := Ceil(this.yy)
 
-      ; If the Graphics hasn't been created, and pGraphics is blank, create the graphics.
-      if (pGraphics == "" && !this.G) {
-         this.hbm := CreateDIBSection(this.ScreenWidth, this.ScreenHeight)
-         this.hdc := CreateCompatibleDC()
-         this.obm := SelectObject(this.hdc, this.hbm)
-         this.G := Gdip_GraphicsFromHDC(this.hdc)
-      }
-
-      ; Keep track of each call of Draw() until the rendered flag is set to true.
-      ; Only if a pGraphics is not supplied.
-      if (pGraphics == "") {
-         pGraphics := this.G
-         ; If the image was previously rendered, reset everything like a new Subtitle object.
-         if (this.rendered == true) {
-            this.rendered := false
-            this.layers := {}
-            this.x := this.y := this.xx := this.yy := "" ; not 0!
-            Gdip_GraphicsClear(this.G)
-         }
-         ; Save each call of Draw().
-         this.layers.push([text, style1, style2])
-      }
-
-      ; Set quality.
-      Gdip_SetSmoothingMode(pGraphics, _q)     ; None = 3, AntiAlias = 4
-      Gdip_SetTextRenderingHint(pGraphics, q)  ; Anti-Alias = 4, Cleartype = 5 (and gives weird effects.)
 
       ; Draw 1 - Background
       if (_w && _h && _c && (_c & 0xFF000000)) {
          if (_r == 0)
             Gdip_SetSmoothingMode(pGraphics, 1) ; Turn antialiasing off if not a rounded rectangle.
          pBrushBackground := Gdip_BrushCreateSolid(_c)
-         Gdip_FillRoundedRectangle(pGraphics, pBrushBackground, _x, _y, _w, _h, _r)
+         Gdip_FillRoundedRectangle(pGraphics, pBrushBackground, _x, _y, _w, _h, _r) ; DRAWING!
          Gdip_DeleteBrush(pBrushBackground)
          if (_r == 0)
             Gdip_SetSmoothingMode(pGraphics, _q) ; Turn antialiasing on for text rendering.
@@ -573,7 +567,7 @@ class Subtitle{
          if (o.void && d.6 == 0)
          {
             pBrush := Gdip_BrushCreateSolid(d.4)
-            Gdip_DrawString(DropShadowG, Text, hFont, hFormat, pBrush, RC)
+            Gdip_DrawString(DropShadowG, Text, hFont, hFormat, pBrush, RC) ; DRAWING!
             Gdip_DeleteBrush(pBrush)
          }
          else ; Fancy stuff occurs when outline and dropShadow parameters are set.
@@ -603,7 +597,7 @@ class Subtitle{
             this.GaussianBlur(DropShadow, d.3, d.5)
             Gdip_SetInterpolationMode(pGraphics, 5) ; NearestNeighbor
             Gdip_SetSmoothingMode(pGraphics, 3) ; Turn off anti-aliasing
-            Gdip_DrawImage(pGraphics, DropShadow, x + d.1 - offset2, y + d.2 - offset2, w + 2*offset2, h + 2*offset2)
+            Gdip_DrawImage(pGraphics, DropShadow, x + d.1 - offset2, y + d.2 - offset2, w + 2*offset2, h + 2*offset2) ; DRAWING!
             Gdip_SetSmoothingMode(pGraphics, _q)
             Gdip_DisposeImage(DropShadow)
          }
@@ -625,7 +619,7 @@ class Subtitle{
             loop % o.3
             {
                DllCall("gdiplus\GdipSetPenWidth", "ptr",pPenGlow, "float",o.1 + 2*A_Index)
-               DllCall("gdiplus\GdipDrawPath", "ptr",pGraphics, "ptr",pPenGlow, "ptr",pPath)
+               DllCall("gdiplus\GdipDrawPath", "ptr",pGraphics, "ptr",pPenGlow, "ptr",pPath) ; DRAWING!
             }
             Gdip_DeletePen(pPenGlow)
          }
@@ -634,28 +628,28 @@ class Subtitle{
          if (o.1) {
             pPen := Gdip_CreatePen(o.2, o.1)
             DllCall("gdiplus\GdipSetPenLineJoin", "ptr",pPen, "uint",2)
-            DllCall("gdiplus\GdipDrawPath", "ptr",pGraphics, "ptr",pPen, "ptr",pPath)
+            DllCall("gdiplus\GdipDrawPath", "ptr",pGraphics, "ptr",pPen, "ptr",pPath) ; DRAWING!
             Gdip_DeletePen(pPen)
          }
 
          ; Fill outline text.
          if (c && (c & 0xFF000000)) {
             pBrush := Gdip_BrushCreateSolid(c)
-            Gdip_FillPath(pGraphics, pBrush, pPath)
+            Gdip_FillPath(pGraphics, pBrush, pPath) ; DRAWING!
             Gdip_DeleteBrush(pBrush)
          }
          Gdip_DeletePath(pPath)
       }
 
-      ; Draw Text
-      if (text != "" && d.void && o.void) {
+      ; Draw Text if outline is not are not specified.
+      if (text != "" && o.void) {
          CreateRectF(RC, x, y, w, h)
          pBrushText := Gdip_BrushCreateSolid(c)
-         Gdip_DrawString(pGraphics, text, hFont, hFormat, pBrushText, RC)
+         Gdip_DrawString(pGraphics, text, hFont, hFormat, pBrushText, RC) ; DRAWING!
          Gdip_DeleteBrush(pBrushText)
       }
 
-      ; Complete
+      ; Delete Font Objects.
       Gdip_DeleteStringFormat(hFormat)
       Gdip_DeleteFont(hFont)
       Gdip_DeleteFontFamily(hFamily)
@@ -702,7 +696,7 @@ class Subtitle{
          _.6 := ((___ := RegExReplace(d, q1    "(s(ize)?)"          q2, "${value}")) != d) ? ___ : _.6
          d := _
       }
-      else return {"void":true}
+      else return {"void":true, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0}
 
       for key, value in d {
          if (key = 4) ; Don't mess with color data.
@@ -744,7 +738,7 @@ class Subtitle{
          _.4 := ((___ := RegExReplace(o, q1    "(t(int)?)"          q2, "${value}")) != o) ? ___ : _.4
          o := _
       }
-      else return {"void":true}
+      else return {"void":true, 1:0, 2:0, 3:0, 4:0}
 
       for key, value in o {
          if (key = 2) || (key = 4) ; Don't mess with color data.
