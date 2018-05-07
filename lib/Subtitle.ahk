@@ -1,17 +1,16 @@
 ; Script:    Subtitle.ahk
 ; Author:    iseahound
 ; Version:   2018-04-17 (April 2018)
-; Recent:    2018-04-17
+; Recent:    2018-05-06
 
 #include <Gdip_All>
 
 
-class Subtitle{
+class Subtitle {
 
    layers := {}, ScreenWidth := A_ScreenWidth, ScreenHeight := A_ScreenHeight
 
-   __New(title := ""){
-      ; Check for a pToken declaration. If non-existent, call the outer class. If non-existent, create a local pToken.
+   __New(title := "") {
       global pToken
       if !(this.outer.Startup())
          if !(pToken)
@@ -27,11 +26,10 @@ class Subtitle{
       this.hdc := CreateCompatibleDC()
       this.obm := SelectObject(this.hdc, this.hbm)
       this.G := Gdip_GraphicsFromHDC(this.hdc)
-      this.colorMap := this.colorMap()
       return this
    }
 
-   __Delete(){
+   __Delete() {
       global pToken
       if (this.outer.pToken)
          return this.outer.Shutdown()
@@ -41,7 +39,7 @@ class Subtitle{
          return Gdip_Shutdown(this.pToken)
    }
 
-   FreeMemory(){
+   FreeMemory() {
       SelectObject(this.hdc, this.obm)
       DeleteObject(this.hbm)
       DeleteDC(this.hdc)
@@ -49,39 +47,48 @@ class Subtitle{
       return this
    }
 
-   Destroy(){
+   Destroy() {
       this.FreeMemory()
       DllCall("DestroyWindow", "ptr",this.hwnd)
       return this
    }
 
-   Hide(){
+   Hide() {
       DllCall("ShowWindow", "ptr",this.hwnd, "int",0)
       return this
    }
 
-   Show(i := 8){
+   Show(i := 8) {
       DllCall("ShowWindow", "ptr",this.hwnd, "int",i)
       return this
    }
 
-   ToggleVisible(){
+   ToggleVisible() {
       return (this.isVisible()) ? this.Hide() : this.Show()
    }
 
-   isVisible(){
+   isVisible() {
       return DllCall("IsWindowVisible", "ptr",this.hwnd)
    }
 
-   ClickThrough(){
+   AlwaysOnTop() {
+      WinSet, AlwaysOnTop, Toggle, % "ahk_id" this.hwnd
+      return this
+   }
+
+   ClickThrough() {
       _dhw := A_DetectHiddenWindows
       DetectHiddenWindows On
-      WinSet, ExStyle, +0x20, % "ahk_id" this.hwnd
+      WinGet, ExStyle, ExStyle, % "ahk_id" this.hwnd
+      if (ExStyle & 0x20)
+         WinSet, ExStyle, -0x20, % "ahk_id" this.hwnd
+      else
+         WinSet, ExStyle, +0x20, % "ahk_id" this.hwnd
       DetectHiddenWindows %_dhw%
       return this
    }
 
-   DetectScreenResolutionChange(width := "", height := ""){
+   DetectScreenResolutionChange(width := "", height := "") {
       width := (width) ? width : A_ScreenWidth
       height := (height) ? height : A_ScreenHeight
       if (width != this.ScreenWidth || height != this.ScreenHeight) {
@@ -99,7 +106,7 @@ class Subtitle{
       }
    }
 
-   Bitmap(x := "", y := "", w := "", h := ""){
+   Bitmap(x := "", y := "", w := "", h := "") {
       x := (x != "") ? x : this.x
       y := (y != "") ? y : this.y
       w := (w != "") ? w : this.xx - this.x
@@ -115,7 +122,7 @@ class Subtitle{
       return pBitmapCopy ; Please dispose of this image responsibly.
    }
 
-   hBitmap(alpha := 0xFFFFFFFF){
+   hBitmap(alpha := 0xFFFFFFFF) {
       ; hBitmap converts alpha channel to specified alpha color.
       ; Adds 1 pixel because Anti-Alias (SmoothingMode = 4)
       ; Should it be crop 1 pixel instead?
@@ -125,7 +132,7 @@ class Subtitle{
       return hBitmap
    }
 
-   Save(filename := "", quality := 92){
+   Save(filename := "", quality := 92) {
       filename := (filename ~= "i)\.(bmp|dib|rle|jpg|jpeg|jpe|jfif|gif|tif|tiff|png)$") ? filename
                : (filename != "") ? filename ".png" : this.title ".png"
       pBitmap := this.Bitmap()
@@ -134,7 +141,7 @@ class Subtitle{
       return this
    }
 
-   Screenshot(filename := "", quality := 92){
+   Screenshot(filename := "", quality := 92) {
       filename := (filename ~= "i)\.(bmp|dib|rle|jpg|jpeg|jpe|jfif|gif|tif|tiff|png)$") ? filename
                : (filename != "") ? filename ".png" : this.title ".png"
       pBitmap := Gdip_BitmapFromScreen(this.x "|" this.y "|" this.xx - this.x "|" this.yy - this.y)
@@ -143,7 +150,7 @@ class Subtitle{
       return this
    }
 
-   Render(text := "", style1 := "", style2 := "", update := true){
+   Render(text := "", style1 := "", style2 := "", update := true) {
       if !(this.hwnd){
          _subtitle := (this.outer) ? new this.outer.Subtitle() : new Subtitle()
          return _subtitle.Render(text, style1, style2, update)
@@ -152,6 +159,8 @@ class Subtitle{
          Critical On
          this.Draw(text, style1, style2)
          this.DetectScreenResolutionChange()
+         if (this.allowDrag == true)
+            this.Reposition()
          if (update == true) {
             UpdateLayeredWindow(this.hwnd, this.hdc, 0, 0, this.ScreenWidth, this.ScreenHeight)
          }
@@ -165,7 +174,7 @@ class Subtitle{
       }
    }
 
-   RenderToBitmap(text := "", style1 := "", style2 := ""){
+   RenderToBitmap(text := "", style1 := "", style2 := "") {
       if !(this.hwnd){
          _subtitle := (this.outer) ? new this.outer.Subtitle() : new Subtitle()
          return _subtitle.RenderToBitmap(text, style1, style2)
@@ -175,7 +184,7 @@ class Subtitle{
       }
    }
 
-   RenderToHBitmap(text := "", style1 := "", style2 := ""){
+   RenderToHBitmap(text := "", style1 := "", style2 := "") {
       if !(this.hwnd){
          _subtitle := (this.outer) ? new this.outer.Subtitle() : new Subtitle()
          return _subtitle.RenderToHBitmap(text, style1, style2)
@@ -183,6 +192,50 @@ class Subtitle{
          this.Render(text, style1, style2, false)
          return this.hBitmap()
       }
+   }
+
+   Reposition() {
+      CoordMode, Mouse, Screen
+      MouseGetPos, x_mouse, y_mouse
+      this.LButton := GetKeyState("LButton", "P") ? 1 : 0
+      this.keypress := (this.LButton && DllCall("GetForegroundWindow") == this.hwnd) ? ((!this.keypress) ? 1 : -1) : ((this.keypress == -1) ? 2 : 0)
+
+      if (this.keypress == 1) {
+         this.x_mouse := x_mouse, this.y_mouse := y_mouse
+         this.hbm2 := CreateDIBSection(A_ScreenWidth, A_ScreenHeight)
+         this.hdc2 := CreateCompatibleDC()
+         this.obm2 := SelectObject(this.hdc2, this.hbm2)
+         this.G2 := Gdip_GraphicsFromHDC(this.hdc2)
+      }
+
+      if (this.keypress == -1) {
+         dx := x_mouse - this.x_mouse
+         dy := y_mouse - this.y_mouse
+         safe_x := (0 + dx <= 0) ? 0 : 0 + dx
+         safe_y := (0 + dy <= 0) ? 0 : 0 + dy
+         safe_w := (0 + this.ScreenWidth + dx >= this.ScreenWidth) ? this.ScreenWidth : 0 + this.ScreenWidth + dx
+         safe_h := (0 + this.ScreenHeight + dy >= this.ScreenHeight) ? this.ScreenHeight : 0 + this.ScreenHeight + dy
+         source_x := (dx < 0) ? -dx : 0
+         source_y := (dy < 0) ? -dy : 0
+         ;Tooltip % dx ", " dy "`n" safe_x ", " safe_y ", " safe_w ", " safe_h
+         Gdip_GraphicsClear(this.G2)
+         BitBlt(this.hdc2, safe_x, safe_y, safe_w, safe_h, this.hdc, source_x, source_y)
+         UpdateLayeredWindow(this.hwnd, this.hdc2, 0, 0, this.ScreenWidth, this.ScreenHeight)
+      }
+
+      if (this.keypress == 2) {
+         Gdip_DeleteGraphics(this.G)
+         SelectObject(this.hdc, this.obm)
+         DeleteObject(this.hbm)
+         DeleteDC(this.hdc)
+         this.hdc := this.hdc2
+         this.obm := this.obm2
+         this.hbm := this.hbm2
+         this.G := Gdip_GraphicsFromHDC(this.hdc2)
+      }
+
+      Reposition := ObjBindMethod(this, "Reposition")
+      SetTimer, % Reposition, -10
    }
 
    Draw(text := "", style1 := "", style2 := "", pGraphics := "") {
@@ -198,16 +251,19 @@ class Subtitle{
          pGraphics := this.G
       }
 
-      ; Remember styles so that they can be loaded next time.
-      this.style1 := style1, this.style2 := style2
+      ; Remove excess whitespace. This is required for proper RegEx detection.
+      style1 := !IsObject(style1) ? RegExReplace(style1, "\s+", " ") : style1
+      style2 := !IsObject(style2) ? RegExReplace(style2, "\s+", " ") : style2
 
       ; Load saved styles if and only if both styles are blank.
       if (style1 == "" && style2 == "")
          style1 := this.style1, style2 := this.style2
+      else
+         this.style1 := style1, this.style2 := style2 ; Remember styles so that they can be loaded next time.
 
-      ; I was autistic when I wrote this fking RegEx. It is a work of art.
-      static q1 := "i)^.*?(?<!-|:|:\s)\b(?![^\(]*\))"
-      static q2 := "(:\s*)?\(?(?<value>(?<=\()[:\s\-\da-z\.#%]+(?=\))|[\-\da-z\.#%]+).*$"
+      ; RegEx help? https://regex101.com/r/xLzZzO/2
+      static q1 := "(?i)^.*?\b(?<!:|:\s)\b"
+      static q2 := "(?!(?>\([^()]*\)|[^()]*)*\))(:\s*)?\(?(?<value>(?<=\()([\s:#%_a-z\-\.\d]+|\([\s:#%_a-z\-\.\d]*\))*(?=\))|[#%_a-z\-\.\d]+).*$"
 
       ; Extract the time variable and save it for later when we Render() everything.
       this.time := (style1.time) ? style1.time : (style1.t) ? style1.t
@@ -283,8 +339,8 @@ class Subtitle{
       }
 
       ; These are the type checkers.
-      static valid := "^(\-?\d+(?:\.\d*)?)\s*(%|pt|px|vh|vmin|vw)?$"
-      static valid_positive := "^(\d+(?:\.\d*)?)\s*(%|pt|px|vh|vmin|vw)?$"
+      static valid := "^\s*(\-?\d+(?:\.\d*)?)\s*(%|pt|px|vh|vmin|vw)?\s*$"
+      static valid_positive := "^\s*(\d+(?:\.\d*)?)\s*(%|pt|px|vh|vmin|vw)?\s*$"
 
       ; Define viewport width and height. This is the visible screen area.
       this.vw := 0.01 * this.ScreenWidth    ; 1% of viewport width.
@@ -359,8 +415,8 @@ class Subtitle{
       _a  := (_y ~= "i)top") ? 1+(mod(_a-1,3)) : (_y ~= "i)cent(er|re)") ? 4+(mod(_a-1,3)) : (_y ~= "i)bottom") ? 7+(mod(_a-1,3)) : _a
 
       ; Convert English words to numbers. Don't mess with these values any further.
-      _x  := (_x ~= "i)left") ? 0 : (_x ~= "i)cent(er|re)") ? 0.5*A_ScreenWidth : (_x ~= "i)right") ? A_ScreenWidth : _x
-      _y  := (_y ~= "i)top") ? 0 : (_y ~= "i)cent(er|re)") ? 0.5*A_ScreenHeight : (_y ~= "i)bottom") ? A_ScreenHeight : _y
+      _x  := (_x ~= "i)left") ? 0 : (_x ~= "i)cent(er|re)") ? 0.5*this.ScreenWidth : (_x ~= "i)right") ? this.ScreenWidth : _x
+      _y  := (_y ~= "i)top") ? 0 : (_y ~= "i)cent(er|re)") ? 0.5*this.ScreenHeight : (_y ~= "i)bottom") ? this.ScreenHeight : _y
 
       ; Get _x value.
       _x := (_x ~= valid) ? RegExReplace(_x, "\s", "") : 0  ; Default _x is 0.
@@ -411,7 +467,7 @@ class Subtitle{
       a  := (a = "top") ? 2 : (a = "left") ? 4 : (a = "right") ? 6 : (a = "bottom") ? 8
          : (a ~= "i)top" && a ~= "i)left") ? 1 : (a ~= "i)top" && a ~= "i)cent(er|re)") ? 2
          : (a ~= "i)top" && a ~= "i)bottom") ? 3 : (a ~= "i)cent(er|re)" && a ~= "i)left") ? 4
-         : (a ~= "i)cent(er|re)") ? 5 : (_a ~= "i)cent(er|re)" && a ~= "i)bottom") ? 6
+         : (a ~= "i)cent(er|re)") ? 5 : (a ~= "i)cent(er|re)" && a ~= "i)bottom") ? 6
          : (a ~= "i)bottom" && a ~= "i)left") ? 7 : (a ~= "i)bottom" && a ~= "i)cent(er|re)") ? 8
          : (a ~= "i)bottom" && a ~= "i)right") ? 9 : (a ~= "^[1-9]$") ? a : 1 ; Default anchor is top-left.
 
@@ -470,7 +526,7 @@ class Subtitle{
 
       ; Re-run: Condense Text using a Condensed Font if simulated text width exceeds screen width.
       if (Gdip_FontFamilyCreate(z)) {
-         if (ReturnRC[3] + x > A_ScreenWidth) {
+         if (ReturnRC[3] + x > this.ScreenWidth) {
             this._redrawBecauseOfCondensedFont := true
             return this.Draw(text, style1, style2, pGraphics)
          }
@@ -489,7 +545,8 @@ class Subtitle{
 
       ; Define color.
       _c := this.color(_c, 0xDD424242) ; Default background color is transparent gray.
-      c  := this.color( c, 0xFFFFFFFF) ; Default text color is white.
+      SourceCopy := (c ~= "i)(delete|eraser?|overwrite|sourceCopy)") ? 1 : 0 ; Eraser brush for text.
+      c  := (SourceCopy) ? 0x00000000 : this.color( c, 0xFFFFFFFF) ; Default text color is white.
 
       ; Define outline and dropShadow.
       o := this.outline(o, s, c)
@@ -534,7 +591,6 @@ class Subtitle{
       this.xx := Ceil(this.xx)
       this.yy := Ceil(this.yy)
 
-
       ; Draw 1 - Background
       if (_w && _h && _c && (_c & 0xFF000000)) {
          if (_r == 0)
@@ -561,15 +617,14 @@ class Subtitle{
             DropShadowG := pGraphics
          }
 
-         ; Literally draw the text. Then later a second version will be drawn over.
-         ; This version that is drawn under is called the "shadow".
+         ; Use Gdip_DrawString if and only if there is a horizontal/vertical offset.
          if (o.void && d.6 == 0)
          {
             pBrush := Gdip_BrushCreateSolid(d.4)
             Gdip_DrawString(DropShadowG, Text, hFont, hFormat, pBrush, RC) ; DRAWING!
             Gdip_DeleteBrush(pBrush)
          }
-         else ; Fancy stuff occurs when outline and dropShadow parameters are set.
+         else ; Otherwise, use the below code if blur, size, and opacity are set.
          {
             ; Draw the outer edge of the text string.
             DllCall("gdiplus\GdipCreatePath", "int",1, "uptr*",pPath)
@@ -580,7 +635,7 @@ class Subtitle{
             DllCall("gdiplus\GdipDrawPath", "ptr",DropShadowG, "ptr",pPen, "ptr",pPath)
             Gdip_DeletePen(pPen)
 
-            ; Fill in the outline. Turn off antialiasing and alpha blending to the gaps are 100% filled.
+            ; Fill in the outline. Turn off antialiasing and alpha blending so the gaps are 100% filled.
             pBrush := Gdip_BrushCreateSolid(d.4)
             Gdip_SetCompositingMode(DropShadowG, 1) ; Turn off alpha blending
             Gdip_SetSmoothingMode(DropShadowG, 3)   ; Turn off anti-aliasing
@@ -612,8 +667,9 @@ class Subtitle{
 
          ; Create a glow effect around the edges.
          if (o.3) {
+            Gdip_SetClipPath(pGraphics, pPath, 3) ; Exclude original text region from being drawn on.
             pPenGlow := Gdip_CreatePen(Format("0x{:02X}",((o.4 & 0xFF000000) >> 24)/o.3) . Format("{:06X}",(o.4 & 0x00FFFFFF)), 1)
-            DllCall("gdiplus\GdipSetPenLineJoin", "ptr",pPenGlow, "uInt",2)
+            DllCall("gdiplus\GdipSetPenLineJoin", "ptr",pPenGlow, "uint",2)
 
             loop % o.3
             {
@@ -621,6 +677,7 @@ class Subtitle{
                DllCall("gdiplus\GdipDrawPath", "ptr",pGraphics, "ptr",pPenGlow, "ptr",pPath) ; DRAWING!
             }
             Gdip_DeletePen(pPenGlow)
+            Gdip_ResetClip(pGraphics)
          }
 
          ; Draw outline text.
@@ -632,11 +689,11 @@ class Subtitle{
          }
 
          ; Fill outline text.
-         if (c && (c & 0xFF000000)) {
-            pBrush := Gdip_BrushCreateSolid(c)
-            Gdip_FillPath(pGraphics, pBrush, pPath) ; DRAWING!
-            Gdip_DeleteBrush(pBrush)
-         }
+         pBrush := Gdip_BrushCreateSolid(c)
+         Gdip_SetCompositingMode(pGraphics, SourceCopy)
+         Gdip_FillPath(pGraphics, pBrush, pPath) ; DRAWING!
+         Gdip_SetCompositingMode(pGraphics, 0)
+         Gdip_DeleteBrush(pBrush)
          Gdip_DeletePath(pPath)
       }
 
@@ -644,7 +701,9 @@ class Subtitle{
       if (text != "" && o.void) {
          CreateRectF(RC, x, y, w, h)
          pBrushText := Gdip_BrushCreateSolid(c)
-         Gdip_DrawString(pGraphics, text, hFont, hFormat, pBrushText, RC) ; DRAWING!
+         Gdip_SetCompositingMode(pGraphics, SourceCopy)
+         Gdip_DrawString(pGraphics, A_IsUnicode ? text : wtext, hFont, hFormat, pBrushText, RC) ; DRAWING!
+         Gdip_SetCompositingMode(pGraphics, 0)
          Gdip_DeleteBrush(pBrushText)
       }
 
@@ -656,27 +715,27 @@ class Subtitle{
       return (pGraphics == "") ? this : ""
    }
 
-   color(c, default := 0xDD424242){
+   color(c, default := 0xDD424242) {
       static colorRGB  := "^0x([0-9A-Fa-f]{6})$"
       static colorARGB := "^0x([0-9A-Fa-f]{8})$"
       static hex6      :=   "^([0-9A-Fa-f]{6})$"
       static hex8      :=   "^([0-9A-Fa-f]{8})$"
 
-      if ObjGetCapacity([c], 1){
+      if ObjGetCapacity([c], 1) {
          c  := (c ~= "^#") ? SubStr(c, 2) : c
-         c  := ((___ := this.colorMap[c]) != "") ? ___ : c
+         c  := ((___ := this.colorMap(c)) != "") ? ___ : c
          c  := (c ~= colorRGB) ? "0xFF" RegExReplace(c, colorRGB, "$1") : (c ~= hex8) ? "0x" c : (c ~= hex6) ? "0xFF" c : c
          c  := (c ~= colorARGB) ? c : default
       }
       return (c != "") ? c : default
    }
 
-   dropShadow(d, x_simulated, y_simulated, font_size){
-      static valid := "^(\-?\d+(?:\.\d*)?)\s*(%|pt|px|vh|vmin|vw)?$"
-      static q1 := "i)^.*?(?<!-|:|:\s)\b(?![^\(]*\))"
-      static q2 := "(:\s*)?\(?(?<value>(?<=\()[:\s\-\da-z\.#%]+(?=\))|[\-\da-z\.#%]+).*$"
+   dropShadow(d, x_simulated, y_simulated, font_size) {
+      static valid := "^\s*(\-?\d+(?:\.\d*)?)\s*(%|pt|px|vh|vmin|vw)?\s*$"
+      static q1 := "(?i)^.*?\b(?<!:|:\s)\b"
+      static q2 := "(?!(?>\([^()]*\)|[^()]*)*\))(:\s*)?\(?(?<value>(?<=\()([\s:#%_a-z\-\.\d]+|\([\s:#%_a-z\-\.\d]*\))*(?=\))|[#%_a-z\-\.\d]+).*$"
 
-      if IsObject(d){
+      if IsObject(d) {
          d.1 := (d.1) ? d.1 : (d.horizontal != "") ? d.horizontal : d.h
          d.2 := (d.2) ? d.2 : (d.vertical   != "") ? d.vertical   : d.v
          d.3 := (d.3) ? d.3 : (d.blur       != "") ? d.blur       : d.b
@@ -717,57 +776,21 @@ class Subtitle{
       return d
    }
 
-   outline(o, font_size, font_color){
-      static valid_positive := "^(\d+(?:\.\d*)?)\s*(%|pt|px|vh|vmin|vw)?$"
-      static q1 := "i)^.*?(?<!-|:|:\s)\b(?![^\(]*\))"
-      static q2 := "(:\s*)?\(?(?<value>(?<=\()[:\s\-\da-z\.#%]+(?=\))|[\-\da-z\.#%]+).*$"
+   font(f, default := "Arial"){
 
-      if IsObject(o){
-         o.1 := (o.1) ? o.1 : (o.stroke != "") ? o.stroke : o.s
-         o.2 := (o.2) ? o.2 : (o.color  != "") ? o.color  : o.c
-         o.3 := (o.3) ? o.3 : (o.glow   != "") ? o.glow   : o.g
-         o.4 := (o.4) ? o.4 : (o.tint   != "") ? o.tint   : o.t
-      } else if (o != "") {
-         _ := RegExReplace(o, ":\s+", ":")
-         _ := RegExReplace(_, "\s+", " ")
-         _ := StrSplit(_, " ")
-         _.1 := ((___ := RegExReplace(o, q1    "(s(troke)?)"        q2, "${value}")) != o) ? ___ : _.1
-         _.2 := ((___ := RegExReplace(o, q1    "(c(olor)?)"         q2, "${value}")) != o) ? ___ : _.2
-         _.3 := ((___ := RegExReplace(o, q1    "(g(low)?)"          q2, "${value}")) != o) ? ___ : _.3
-         _.4 := ((___ := RegExReplace(o, q1    "(t(int)?)"          q2, "${value}")) != o) ? ___ : _.4
-         o := _
-      }
-      else return {"void":true, 1:0, 2:0, 3:0, 4:0}
-
-      for key, value in o {
-         if (key = 2) || (key = 4) ; Don't mess with color data.
-            continue
-         o[key] := (o[key] ~= valid_positive) ? RegExReplace(o[key], "\s", "") : 0 ; Default for everything is 0.
-         o[key] := (o[key] ~= "(pt|px)$") ? SubStr(o[key], 1, -2) : o[key]
-         o[key] := (o[key] ~= "vw$") ? RegExReplace(o[key], "vw$", "") * this.vw : o[key]
-         o[key] := (o[key] ~= "vh$") ? RegExReplace(o[key], "vh$", "") * this.vh : o[key]
-         o[key] := (o[key] ~= "vmin$") ? RegExReplace(o[key], "vmin$", "") * this.vmin : o[key]
-      }
-
-      o.1 := (o.1 ~= "%$") ? SubStr(o.1, 1, -1) * 0.01 * font_size : o.1
-      o.2 := this.color(o.2, font_color) ; Default color is the text font color.
-      o.3 := (o.3 ~= "%$") ? SubStr(o.3, 1, -1) * 0.01 * font_size : o.3
-      o.4 := this.color(o.4, o.2) ; Default color is outline color.
-      return o
    }
 
-   margin_and_padding(m, default := 0){
-      static valid := "^(\-?\d+(?:\.\d*)?)\s*(%|pt|px|vh|vmin|vw)?$"
-      static q1 := "i)^.*?(?<!-|:|:\s)\b(?![^\(]*\))"
-      static q2 := "(:\s*)?\(?(?<value>(?<=\()[:\s\-\da-z\.#%]+(?=\))|[\-\da-z\.#%]+).*$"
+   margin_and_padding(m, default := 0) {
+      static valid := "^\s*(\-?\d+(?:\.\d*)?)\s*(%|pt|px|vh|vmin|vw)?\s*$"
+      static q1 := "(?i)^.*?\b(?<!:|:\s)\b"
+      static q2 := "(?!(?>\([^()]*\)|[^()]*)*\))(:\s*)?\(?(?<value>(?<=\()([\s:#%_a-z\-\.\d]+|\([\s:#%_a-z\-\.\d]*\))*(?=\))|[#%_a-z\-\.\d]+).*$"
 
-      if IsObject(m){
+      if IsObject(m) {
          m.1 := (m.top    != "") ? m.top    : m.t
          m.2 := (m.right  != "") ? m.right  : m.r
          m.3 := (m.bottom != "") ? m.bottom : m.b
          m.4 := (m.left   != "") ? m.left   : m.l
-      }
-      else if (m != ""){
+      } else if (m != "") {
          _ := RegExReplace(m, ":\s+", ":")
          _ := RegExReplace(_, "\s+", " ")
          _ := StrSplit(_, " ")
@@ -801,162 +824,207 @@ class Subtitle{
       return m
    }
 
-   colorMap(){
+   outline(o, font_size, font_color) {
+      static valid_positive := "^\s*(\d+(?:\.\d*)?)\s*(%|pt|px|vh|vmin|vw)?\s*$"
+      static q1 := "(?i)^.*?\b(?<!:|:\s)\b"
+      static q2 := "(?!(?>\([^()]*\)|[^()]*)*\))(:\s*)?\(?(?<value>(?<=\()([\s:#%_a-z\-\.\d]+|\([\s:#%_a-z\-\.\d]*\))*(?=\))|[#%_a-z\-\.\d]+).*$"
+
+      if IsObject(o) {
+         o.1 := (o.1) ? o.1 : (o.stroke != "") ? o.stroke : o.s
+         o.2 := (o.2) ? o.2 : (o.color  != "") ? o.color  : o.c
+         o.3 := (o.3) ? o.3 : (o.glow   != "") ? o.glow   : o.g
+         o.4 := (o.4) ? o.4 : (o.tint   != "") ? o.tint   : o.t
+      } else if (o != "") {
+         _ := RegExReplace(o, ":\s+", ":")
+         _ := RegExReplace(_, "\s+", " ")
+         _ := StrSplit(_, " ")
+         _.1 := ((___ := RegExReplace(o, q1    "(s(troke)?)"        q2, "${value}")) != o) ? ___ : _.1
+         _.2 := ((___ := RegExReplace(o, q1    "(c(olor)?)"         q2, "${value}")) != o) ? ___ : _.2
+         _.3 := ((___ := RegExReplace(o, q1    "(g(low)?)"          q2, "${value}")) != o) ? ___ : _.3
+         _.4 := ((___ := RegExReplace(o, q1    "(t(int)?)"          q2, "${value}")) != o) ? ___ : _.4
+         o := _
+      }
+      else return {"void":true, 1:0, 2:0, 3:0, 4:0}
+
+      for key, value in o {
+         if (key = 2) || (key = 4) ; Don't mess with color data.
+            continue
+         o[key] := (o[key] ~= valid_positive) ? RegExReplace(o[key], "\s", "") : 0 ; Default for everything is 0.
+         o[key] := (o[key] ~= "(pt|px)$") ? SubStr(o[key], 1, -2) : o[key]
+         o[key] := (o[key] ~= "vw$") ? RegExReplace(o[key], "vw$", "") * this.vw : o[key]
+         o[key] := (o[key] ~= "vh$") ? RegExReplace(o[key], "vh$", "") * this.vh : o[key]
+         o[key] := (o[key] ~= "vmin$") ? RegExReplace(o[key], "vmin$", "") * this.vmin : o[key]
+      }
+
+      o.1 := (o.1 ~= "%$") ? SubStr(o.1, 1, -1) * 0.01 * font_size : o.1
+      o.2 := this.color(o.2, font_color) ; Default color is the text font color.
+      o.3 := (o.3 ~= "%$") ? SubStr(o.3, 1, -1) * 0.01 * font_size : o.3
+      o.4 := this.color(o.4, o.2) ; Default color is outline color.
+      return o
+   }
+
+   colorMap(c) {
+      static map
+
+      if !(map) {
       color := [] ; 73 LINES MAX
       color["Clear"] := color["Off"] := color["None"] := color["Transparent"] := "0x00000000"
 
          color["AliceBlue"]             := "0xFFF0F8FF"
-       , color["AntiqueWhite"]          := "0xFFFAEBD7"
-       , color["Aqua"]                  := "0xFF00FFFF"
-       , color["Aquamarine"]            := "0xFF7FFFD4"
-       , color["Azure"]                 := "0xFFF0FFFF"
-       , color["Beige"]                 := "0xFFF5F5DC"
-       , color["Bisque"]                := "0xFFFFE4C4"
-       , color["Black"]                 := "0xFF000000"
-       , color["BlanchedAlmond"]        := "0xFFFFEBCD"
-       , color["Blue"]                  := "0xFF0000FF"
-       , color["BlueViolet"]            := "0xFF8A2BE2"
-       , color["Brown"]                 := "0xFFA52A2A"
-       , color["BurlyWood"]             := "0xFFDEB887"
-       , color["CadetBlue"]             := "0xFF5F9EA0"
-       , color["Chartreuse"]            := "0xFF7FFF00"
-       , color["Chocolate"]             := "0xFFD2691E"
-       , color["Coral"]                 := "0xFFFF7F50"
-       , color["CornflowerBlue"]        := "0xFF6495ED"
-       , color["Cornsilk"]              := "0xFFFFF8DC"
-       , color["Crimson"]               := "0xFFDC143C"
-       , color["Cyan"]                  := "0xFF00FFFF"
-       , color["DarkBlue"]              := "0xFF00008B"
-       , color["DarkCyan"]              := "0xFF008B8B"
-       , color["DarkGoldenRod"]         := "0xFFB8860B"
-       , color["DarkGray"]              := "0xFFA9A9A9"
-       , color["DarkGrey"]              := "0xFFA9A9A9"
-       , color["DarkGreen"]             := "0xFF006400"
-       , color["DarkKhaki"]             := "0xFFBDB76B"
-       , color["DarkMagenta"]           := "0xFF8B008B"
-       , color["DarkOliveGreen"]        := "0xFF556B2F"
-       , color["DarkOrange"]            := "0xFFFF8C00"
-       , color["DarkOrchid"]            := "0xFF9932CC"
-       , color["DarkRed"]               := "0xFF8B0000"
-       , color["DarkSalmon"]            := "0xFFE9967A"
-       , color["DarkSeaGreen"]          := "0xFF8FBC8F"
-       , color["DarkSlateBlue"]         := "0xFF483D8B"
-       , color["DarkSlateGray"]         := "0xFF2F4F4F"
-       , color["DarkSlateGrey"]         := "0xFF2F4F4F"
-       , color["DarkTurquoise"]         := "0xFF00CED1"
-       , color["DarkViolet"]            := "0xFF9400D3"
-       , color["DeepPink"]              := "0xFFFF1493"
-       , color["DeepSkyBlue"]           := "0xFF00BFFF"
-       , color["DimGray"]               := "0xFF696969"
-       , color["DimGrey"]               := "0xFF696969"
-       , color["DodgerBlue"]            := "0xFF1E90FF"
-       , color["FireBrick"]             := "0xFFB22222"
-       , color["FloralWhite"]           := "0xFFFFFAF0"
-       , color["ForestGreen"]           := "0xFF228B22"
-       , color["Fuchsia"]               := "0xFFFF00FF"
-       , color["Gainsboro"]             := "0xFFDCDCDC"
-       , color["GhostWhite"]            := "0xFFF8F8FF"
-       , color["Gold"]                  := "0xFFFFD700"
-       , color["GoldenRod"]             := "0xFFDAA520"
-       , color["Gray"]                  := "0xFF808080"
-       , color["Grey"]                  := "0xFF808080"
-       , color["Green"]                 := "0xFF008000"
-       , color["GreenYellow"]           := "0xFFADFF2F"
-       , color["HoneyDew"]              := "0xFFF0FFF0"
-       , color["HotPink"]               := "0xFFFF69B4"
-       , color["IndianRed"]             := "0xFFCD5C5C"
-       , color["Indigo"]                := "0xFF4B0082"
-       , color["Ivory"]                 := "0xFFFFFFF0"
-       , color["Khaki"]                 := "0xFFF0E68C"
-       , color["Lavender"]              := "0xFFE6E6FA"
-       , color["LavenderBlush"]         := "0xFFFFF0F5"
-       , color["LawnGreen"]             := "0xFF7CFC00"
-       , color["LemonChiffon"]          := "0xFFFFFACD"
-       , color["LightBlue"]             := "0xFFADD8E6"
-       , color["LightCoral"]            := "0xFFF08080"
-       , color["LightCyan"]             := "0xFFE0FFFF"
-       , color["LightGoldenRodYellow"]  := "0xFFFAFAD2"
-       , color["LightGray"]             := "0xFFD3D3D3"
-       , color["LightGrey"]             := "0xFFD3D3D3"
+      ,  color["AntiqueWhite"]          := "0xFFFAEBD7"
+      ,  color["Aqua"]                  := "0xFF00FFFF"
+      ,  color["Aquamarine"]            := "0xFF7FFFD4"
+      ,  color["Azure"]                 := "0xFFF0FFFF"
+      ,  color["Beige"]                 := "0xFFF5F5DC"
+      ,  color["Bisque"]                := "0xFFFFE4C4"
+      ,  color["Black"]                 := "0xFF000000"
+      ,  color["BlanchedAlmond"]        := "0xFFFFEBCD"
+      ,  color["Blue"]                  := "0xFF0000FF"
+      ,  color["BlueViolet"]            := "0xFF8A2BE2"
+      ,  color["Brown"]                 := "0xFFA52A2A"
+      ,  color["BurlyWood"]             := "0xFFDEB887"
+      ,  color["CadetBlue"]             := "0xFF5F9EA0"
+      ,  color["Chartreuse"]            := "0xFF7FFF00"
+      ,  color["Chocolate"]             := "0xFFD2691E"
+      ,  color["Coral"]                 := "0xFFFF7F50"
+      ,  color["CornflowerBlue"]        := "0xFF6495ED"
+      ,  color["Cornsilk"]              := "0xFFFFF8DC"
+      ,  color["Crimson"]               := "0xFFDC143C"
+      ,  color["Cyan"]                  := "0xFF00FFFF"
+      ,  color["DarkBlue"]              := "0xFF00008B"
+      ,  color["DarkCyan"]              := "0xFF008B8B"
+      ,  color["DarkGoldenRod"]         := "0xFFB8860B"
+      ,  color["DarkGray"]              := "0xFFA9A9A9"
+      ,  color["DarkGrey"]              := "0xFFA9A9A9"
+      ,  color["DarkGreen"]             := "0xFF006400"
+      ,  color["DarkKhaki"]             := "0xFFBDB76B"
+      ,  color["DarkMagenta"]           := "0xFF8B008B"
+      ,  color["DarkOliveGreen"]        := "0xFF556B2F"
+      ,  color["DarkOrange"]            := "0xFFFF8C00"
+      ,  color["DarkOrchid"]            := "0xFF9932CC"
+      ,  color["DarkRed"]               := "0xFF8B0000"
+      ,  color["DarkSalmon"]            := "0xFFE9967A"
+      ,  color["DarkSeaGreen"]          := "0xFF8FBC8F"
+      ,  color["DarkSlateBlue"]         := "0xFF483D8B"
+      ,  color["DarkSlateGray"]         := "0xFF2F4F4F"
+      ,  color["DarkSlateGrey"]         := "0xFF2F4F4F"
+      ,  color["DarkTurquoise"]         := "0xFF00CED1"
+      ,  color["DarkViolet"]            := "0xFF9400D3"
+      ,  color["DeepPink"]              := "0xFFFF1493"
+      ,  color["DeepSkyBlue"]           := "0xFF00BFFF"
+      ,  color["DimGray"]               := "0xFF696969"
+      ,  color["DimGrey"]               := "0xFF696969"
+      ,  color["DodgerBlue"]            := "0xFF1E90FF"
+      ,  color["FireBrick"]             := "0xFFB22222"
+      ,  color["FloralWhite"]           := "0xFFFFFAF0"
+      ,  color["ForestGreen"]           := "0xFF228B22"
+      ,  color["Fuchsia"]               := "0xFFFF00FF"
+      ,  color["Gainsboro"]             := "0xFFDCDCDC"
+      ,  color["GhostWhite"]            := "0xFFF8F8FF"
+      ,  color["Gold"]                  := "0xFFFFD700"
+      ,  color["GoldenRod"]             := "0xFFDAA520"
+      ,  color["Gray"]                  := "0xFF808080"
+      ,  color["Grey"]                  := "0xFF808080"
+      ,  color["Green"]                 := "0xFF008000"
+      ,  color["GreenYellow"]           := "0xFFADFF2F"
+      ,  color["HoneyDew"]              := "0xFFF0FFF0"
+      ,  color["HotPink"]               := "0xFFFF69B4"
+      ,  color["IndianRed"]             := "0xFFCD5C5C"
+      ,  color["Indigo"]                := "0xFF4B0082"
+      ,  color["Ivory"]                 := "0xFFFFFFF0"
+      ,  color["Khaki"]                 := "0xFFF0E68C"
+      ,  color["Lavender"]              := "0xFFE6E6FA"
+      ,  color["LavenderBlush"]         := "0xFFFFF0F5"
+      ,  color["LawnGreen"]             := "0xFF7CFC00"
+      ,  color["LemonChiffon"]          := "0xFFFFFACD"
+      ,  color["LightBlue"]             := "0xFFADD8E6"
+      ,  color["LightCoral"]            := "0xFFF08080"
+      ,  color["LightCyan"]             := "0xFFE0FFFF"
+      ,  color["LightGoldenRodYellow"]  := "0xFFFAFAD2"
+      ,  color["LightGray"]             := "0xFFD3D3D3"
+      ,  color["LightGrey"]             := "0xFFD3D3D3"
          color["LightGreen"]            := "0xFF90EE90"
-       , color["LightPink"]             := "0xFFFFB6C1"
-       , color["LightSalmon"]           := "0xFFFFA07A"
-       , color["LightSeaGreen"]         := "0xFF20B2AA"
-       , color["LightSkyBlue"]          := "0xFF87CEFA"
-       , color["LightSlateGray"]        := "0xFF778899"
-       , color["LightSlateGrey"]        := "0xFF778899"
-       , color["LightSteelBlue"]        := "0xFFB0C4DE"
-       , color["LightYellow"]           := "0xFFFFFFE0"
-       , color["Lime"]                  := "0xFF00FF00"
-       , color["LimeGreen"]             := "0xFF32CD32"
-       , color["Linen"]                 := "0xFFFAF0E6"
-       , color["Magenta"]               := "0xFFFF00FF"
-       , color["Maroon"]                := "0xFF800000"
-       , color["MediumAquaMarine"]      := "0xFF66CDAA"
-       , color["MediumBlue"]            := "0xFF0000CD"
-       , color["MediumOrchid"]          := "0xFFBA55D3"
-       , color["MediumPurple"]          := "0xFF9370DB"
-       , color["MediumSeaGreen"]        := "0xFF3CB371"
-       , color["MediumSlateBlue"]       := "0xFF7B68EE"
-       , color["MediumSpringGreen"]     := "0xFF00FA9A"
-       , color["MediumTurquoise"]       := "0xFF48D1CC"
-       , color["MediumVioletRed"]       := "0xFFC71585"
-       , color["MidnightBlue"]          := "0xFF191970"
-       , color["MintCream"]             := "0xFFF5FFFA"
-       , color["MistyRose"]             := "0xFFFFE4E1"
-       , color["Moccasin"]              := "0xFFFFE4B5"
-       , color["NavajoWhite"]           := "0xFFFFDEAD"
-       , color["Navy"]                  := "0xFF000080"
-       , color["OldLace"]               := "0xFFFDF5E6"
-       , color["Olive"]                 := "0xFF808000"
-       , color["OliveDrab"]             := "0xFF6B8E23"
-       , color["Orange"]                := "0xFFFFA500"
-       , color["OrangeRed"]             := "0xFFFF4500"
-       , color["Orchid"]                := "0xFFDA70D6"
-       , color["PaleGoldenRod"]         := "0xFFEEE8AA"
-       , color["PaleGreen"]             := "0xFF98FB98"
-       , color["PaleTurquoise"]         := "0xFFAFEEEE"
-       , color["PaleVioletRed"]         := "0xFFDB7093"
-       , color["PapayaWhip"]            := "0xFFFFEFD5"
-       , color["PeachPuff"]             := "0xFFFFDAB9"
-       , color["Peru"]                  := "0xFFCD853F"
-       , color["Pink"]                  := "0xFFFFC0CB"
-       , color["Plum"]                  := "0xFFDDA0DD"
-       , color["PowderBlue"]            := "0xFFB0E0E6"
-       , color["Purple"]                := "0xFF800080"
-       , color["RebeccaPurple"]         := "0xFF663399"
-       , color["Red"]                   := "0xFFFF0000"
-       , color["RosyBrown"]             := "0xFFBC8F8F"
-       , color["RoyalBlue"]             := "0xFF4169E1"
-       , color["SaddleBrown"]           := "0xFF8B4513"
-       , color["Salmon"]                := "0xFFFA8072"
-       , color["SandyBrown"]            := "0xFFF4A460"
-       , color["SeaGreen"]              := "0xFF2E8B57"
-       , color["SeaShell"]              := "0xFFFFF5EE"
-       , color["Sienna"]                := "0xFFA0522D"
-       , color["Silver"]                := "0xFFC0C0C0"
-       , color["SkyBlue"]               := "0xFF87CEEB"
-       , color["SlateBlue"]             := "0xFF6A5ACD"
-       , color["SlateGray"]             := "0xFF708090"
-       , color["SlateGrey"]             := "0xFF708090"
-       , color["Snow"]                  := "0xFFFFFAFA"
-       , color["SpringGreen"]           := "0xFF00FF7F"
-       , color["SteelBlue"]             := "0xFF4682B4"
-       , color["Tan"]                   := "0xFFD2B48C"
-       , color["Teal"]                  := "0xFF008080"
-       , color["Thistle"]               := "0xFFD8BFD8"
-       , color["Tomato"]                := "0xFFFF6347"
-       , color["Turquoise"]             := "0xFF40E0D0"
-       , color["Violet"]                := "0xFFEE82EE"
-       , color["Wheat"]                 := "0xFFF5DEB3"
-       , color["White"]                 := "0xFFFFFFFF"
-       , color["WhiteSmoke"]            := "0xFFF5F5F5"
+      ,  color["LightPink"]             := "0xFFFFB6C1"
+      ,  color["LightSalmon"]           := "0xFFFFA07A"
+      ,  color["LightSeaGreen"]         := "0xFF20B2AA"
+      ,  color["LightSkyBlue"]          := "0xFF87CEFA"
+      ,  color["LightSlateGray"]        := "0xFF778899"
+      ,  color["LightSlateGrey"]        := "0xFF778899"
+      ,  color["LightSteelBlue"]        := "0xFFB0C4DE"
+      ,  color["LightYellow"]           := "0xFFFFFFE0"
+      ,  color["Lime"]                  := "0xFF00FF00"
+      ,  color["LimeGreen"]             := "0xFF32CD32"
+      ,  color["Linen"]                 := "0xFFFAF0E6"
+      ,  color["Magenta"]               := "0xFFFF00FF"
+      ,  color["Maroon"]                := "0xFF800000"
+      ,  color["MediumAquaMarine"]      := "0xFF66CDAA"
+      ,  color["MediumBlue"]            := "0xFF0000CD"
+      ,  color["MediumOrchid"]          := "0xFFBA55D3"
+      ,  color["MediumPurple"]          := "0xFF9370DB"
+      ,  color["MediumSeaGreen"]        := "0xFF3CB371"
+      ,  color["MediumSlateBlue"]       := "0xFF7B68EE"
+      ,  color["MediumSpringGreen"]     := "0xFF00FA9A"
+      ,  color["MediumTurquoise"]       := "0xFF48D1CC"
+      ,  color["MediumVioletRed"]       := "0xFFC71585"
+      ,  color["MidnightBlue"]          := "0xFF191970"
+      ,  color["MintCream"]             := "0xFFF5FFFA"
+      ,  color["MistyRose"]             := "0xFFFFE4E1"
+      ,  color["Moccasin"]              := "0xFFFFE4B5"
+      ,  color["NavajoWhite"]           := "0xFFFFDEAD"
+      ,  color["Navy"]                  := "0xFF000080"
+      ,  color["OldLace"]               := "0xFFFDF5E6"
+      ,  color["Olive"]                 := "0xFF808000"
+      ,  color["OliveDrab"]             := "0xFF6B8E23"
+      ,  color["Orange"]                := "0xFFFFA500"
+      ,  color["OrangeRed"]             := "0xFFFF4500"
+      ,  color["Orchid"]                := "0xFFDA70D6"
+      ,  color["PaleGoldenRod"]         := "0xFFEEE8AA"
+      ,  color["PaleGreen"]             := "0xFF98FB98"
+      ,  color["PaleTurquoise"]         := "0xFFAFEEEE"
+      ,  color["PaleVioletRed"]         := "0xFFDB7093"
+      ,  color["PapayaWhip"]            := "0xFFFFEFD5"
+      ,  color["PeachPuff"]             := "0xFFFFDAB9"
+      ,  color["Peru"]                  := "0xFFCD853F"
+      ,  color["Pink"]                  := "0xFFFFC0CB"
+      ,  color["Plum"]                  := "0xFFDDA0DD"
+      ,  color["PowderBlue"]            := "0xFFB0E0E6"
+      ,  color["Purple"]                := "0xFF800080"
+      ,  color["RebeccaPurple"]         := "0xFF663399"
+      ,  color["Red"]                   := "0xFFFF0000"
+      ,  color["RosyBrown"]             := "0xFFBC8F8F"
+      ,  color["RoyalBlue"]             := "0xFF4169E1"
+      ,  color["SaddleBrown"]           := "0xFF8B4513"
+      ,  color["Salmon"]                := "0xFFFA8072"
+      ,  color["SandyBrown"]            := "0xFFF4A460"
+      ,  color["SeaGreen"]              := "0xFF2E8B57"
+      ,  color["SeaShell"]              := "0xFFFFF5EE"
+      ,  color["Sienna"]                := "0xFFA0522D"
+      ,  color["Silver"]                := "0xFFC0C0C0"
+      ,  color["SkyBlue"]               := "0xFF87CEEB"
+      ,  color["SlateBlue"]             := "0xFF6A5ACD"
+      ,  color["SlateGray"]             := "0xFF708090"
+      ,  color["SlateGrey"]             := "0xFF708090"
+      ,  color["Snow"]                  := "0xFFFFFAFA"
+      ,  color["SpringGreen"]           := "0xFF00FF7F"
+      ,  color["SteelBlue"]             := "0xFF4682B4"
+      ,  color["Tan"]                   := "0xFFD2B48C"
+      ,  color["Teal"]                  := "0xFF008080"
+      ,  color["Thistle"]               := "0xFFD8BFD8"
+      ,  color["Tomato"]                := "0xFFFF6347"
+      ,  color["Turquoise"]             := "0xFF40E0D0"
+      ,  color["Violet"]                := "0xFFEE82EE"
+      ,  color["Wheat"]                 := "0xFFF5DEB3"
+      ,  color["White"]                 := "0xFFFFFFFF"
+      ,  color["WhiteSmoke"]            := "0xFFF5F5F5"
          color["Yellow"]                := "0xFFFFFF00"
-       , color["YellowGreen"]           := "0xFF9ACD32"
-      return color
+      ,  color["YellowGreen"]           := "0xFF9ACD32"
+      map := color
+      }
+
+      return map[c]
    }
 
-   GaussianBlur(ByRef pBitmap, radius, opacity := 1){
+   GaussianBlur(ByRef pBitmap, radius, opacity := 1) {
       static x86 := "
       (LTrim
       VYnlV1ZTg+xci0Uci30c2UUgx0WsAwAAAI1EAAGJRdiLRRAPr0UYicOJRdSLRRwP
@@ -1047,27 +1115,27 @@ class Subtitle{
       }
    }
 
-   x1(){
+   x1() {
       return this.x
    }
 
-   y1(){
+   y1() {
       return this.y
    }
 
-   x2(){
+   x2() {
       return this.xx
    }
 
-   y2(){
+   y2() {
       return this.yy
    }
 
-   width(){
+   width() {
       return this.xx - this.x
    }
 
-   height(){
+   height() {
       return this.yy - this.y
    }
-}
+} ; End of Subtitle class.
