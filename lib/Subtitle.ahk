@@ -1,7 +1,7 @@
 ; Script:    Subtitle.ahk
 ; Author:    iseahound
 ; Version:   2018-04-17 (April 2018)
-; Recent:    2018-05-06
+; Recent:    2018-05-15
 
 #include <Gdip_All>
 
@@ -76,6 +76,11 @@ class Subtitle {
       return this
    }
 
+   Bottom() {
+      WinSet, Bottom,, % "ahk_id" this.hwnd
+      return this
+   }
+
    ClickThrough() {
       _dhw := A_DetectHiddenWindows
       DetectHiddenWindows On
@@ -85,6 +90,45 @@ class Subtitle {
       else
          WinSet, ExStyle, +0x20, % "ahk_id" this.hwnd
       DetectHiddenWindows %_dhw%
+      return this
+   }
+
+   Desktop() {
+      ; Based on: https://www.codeproject.com/Articles/856020/Draw-Behind-Desktop-Icons-in-Windows-plus?msg=5478543#xx5478543xx
+      DllCall("SendMessage", "ptr",WinExist("ahk_class Progman"), "uint",0x052C, "ptr",0x0000000D, "ptr",0)
+      DllCall("SendMessage", "ptr",WinExist("ahk_class Progman"), "uint",0x052C, "ptr",0x0000000D, "ptr",1) ; Post-Creator's Update Windows 10.
+      WinGet, windows, List, ahk_class WorkerW
+      Loop, %windows%
+         if (DllCall("FindWindowEx", "ptr",windows%A_Index%, "ptr",0, "str","SHELLDLL_DefView", "ptr",0) != 0)
+            WorkerW := DllCall("FindWindowEx", "ptr",0, "ptr",windows%A_Index%, "str","WorkerW", "ptr",0)
+
+      if (WorkerW) {
+         this.Destroy()
+         this.hwnd := WorkerW
+         DllCall("SetWindowPos", "uint",WorkerW, "uint",1, "int",0, "int",0, "int",this.ScreenWidth, "int",this.ScreenHeight, "uint",0)
+         this.base.FreeMemory := ObjBindMethod(this, "DesktopFreeMemory")
+         this.base.Destroy := ObjBindMethod(this, "DesktopDestroy")
+         this.hdc := DllCall("GetDCEx", "ptr",WorkerW, "ptr",0, "int",0x403)
+         this.G := Gdip_GraphicsFromHDC(this.hdc)
+      }
+      return this
+   }
+
+   DesktopFreeMemory() {
+      ReleaseDC(this.hdc)
+      Gdip_DeleteGraphics(this.G)
+      return this
+   }
+
+   DesktopDestroy() {
+      this.FreeMemory()
+      DllCall("SendMessage", "ptr",WinExist("ahk_class Progman"), "uint",0x052C, "ptr",0x0000000D, "ptr",0)
+      DllCall("SendMessage", "ptr",WinExist("ahk_class Progman"), "uint",0x052C, "ptr",0x0000000D, "ptr",1)
+      return this
+   }
+
+   Normal() {
+      WinSet, AlwaysOnTop, Off, % "ahk_id" this.hwnd
       return this
    }
 
